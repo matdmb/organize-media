@@ -1,0 +1,15 @@
+# Go-specific
+/bin/
+*.exe
+*.out
+*.test
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS-specific
+.DS_Store
+Thumbs.db
