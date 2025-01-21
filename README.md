@@ -18,7 +18,7 @@ make build
 ## How to run the application
 
 ```bash
-./bin/organize-images ../src/ ../dest
+./bin/organize-pictures ../src/ ../dest
 ```
 You can also use the "make run" command if source and destination folders have been correctly set up in the Makefile
 
