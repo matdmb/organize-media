@@ -14,6 +14,6 @@ clean:
 
 # Command to run the application
 run: build
-	./$(BIN_DIR)/$(APP_NAME) /path/to/source /path/to/destination
+	./$(BIN_DIR)/$(APP_NAME) ../../Pictures/Import/ ../../Pictures/RAW/
 
 .PHONY: build clean run
