@@ -21,6 +21,25 @@ var allowedExtensions = []string{".jpg", ".nef"}
 func main() {
 	source, dest := readParameters()
 
+	totalFiles, err := countFiles(source)
+	if err != nil {
+		log.Fatalf("Error counting files: %v", err)
+	}
+
+	fmt.Printf("Total files to move: %d\n", totalFiles)
+
+	if totalFiles == 0 {
+		fmt.Println("No files to move. Exiting.")
+		return
+	}
+	fmt.Printf("Do you want to proceed with moving %d files? (y/n): ", totalFiles)
+	var response string
+	fmt.Scanln(&response)
+	if strings.ToLower(response) != "y" {
+		fmt.Println("Operation cancelled.")
+		return
+	}
+
 	files, err := listFiles(source)
 	if err != nil {
 		log.Fatalf("Error listing files: %v", err)
@@ -122,4 +141,21 @@ func moveFiles(files []ImageFile, dest string) error {
 	}
 
 	return nil
+}
+
+func countFiles(dir string) (int, error) {
+	var count int
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && isAllowedExtension(filepath.Ext(info.Name())) {
+			count++
+		}
+		return nil
+	})
+
+	return count, err
 }
