@@ -72,13 +72,25 @@ func MoveFiles(files []ImageFile, dest string) error {
 		monthDayDir := filepath.Join(yearDir, fmt.Sprintf("%02d-%02d", file.Date.Month(), file.Date.Day()))
 
 		if err := os.MkdirAll(monthDayDir, os.ModePerm); err != nil {
-			return err
+			return fmt.Errorf("failed to create directory %s: %w", monthDayDir, err)
 		}
 
 		newPath := filepath.Join(monthDayDir, filepath.Base(file.Path))
-		if err := os.Rename(file.Path, newPath); err != nil {
-			return err
+
+		// Checks if file already exists in destination
+		if _, err := os.Stat(newPath); err == nil {
+			// File exists, skipping
+			fmt.Printf("File already exists: %s, skipping...\n", newPath)
+			continue
+		} else if !os.IsNotExist(err) {
+			// Another error occurred
+			return fmt.Errorf("error checking destination file %s: %w", newPath, err)
 		}
+
+		if err := os.Rename(file.Path, newPath); err != nil {
+			return fmt.Errorf("failed to move file %s to %s: %w", file.Path, newPath, err)
+		}
+		fmt.Printf("Moved file %s to %s\n", file.Path, newPath)
 	}
 
 	return nil
