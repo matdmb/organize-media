@@ -4,13 +4,25 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/matdmb/organize_pictures/internal"
 )
 
 func main() {
-	source, dest := readParameters()
+	source, dest, compression, err := readParameters()
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	log.Printf("Source directory: %s", source)
+	log.Printf("Destination directory: %s", dest)
+	if compression >= 0 {
+		log.Printf("Compression level: %d", compression)
+	} else {
+		log.Printf("Compression: not applied")
+	}
 
 	totalFiles, err := internal.CountFiles(source)
 	if err != nil {
@@ -36,7 +48,7 @@ func main() {
 		log.Fatalf("Error listing files: %v", err)
 	}
 
-	err = internal.MoveFiles(files, dest)
+	err = internal.MoveFiles(files, dest, compression)
 	if err != nil {
 		log.Fatalf("Error moving files: %v", err)
 	}
@@ -44,9 +56,9 @@ func main() {
 	fmt.Printf("%d files have been successfully moved.\n", len(files))
 }
 
-func readParameters() (string, string) {
-	if len(os.Args) != 3 {
-		log.Fatalf("Usage: %s <source_directory> <destination_directory>", os.Args[0])
+func readParameters() (string, string, int, error) {
+	if len(os.Args) < 3 || len(os.Args) > 4 {
+		return "", "", -1, fmt.Errorf("usage: %s <source_dir> <destination_dir> [compression (0-100)]", os.Args[0])
 	}
 
 	source := os.Args[1]
@@ -60,5 +72,16 @@ func readParameters() (string, string) {
 		log.Fatalf("Destination directory does not exist: %s", dest)
 	}
 
-	return source, dest
+	// Default compression level to -1 (no compression) if not provided
+	compression := -1
+
+	if len(os.Args) == 4 {
+		var err error
+		compression, err = strconv.Atoi(os.Args[3])
+		if err != nil || compression < 0 || compression > 100 {
+			return "", "", -1, fmt.Errorf("compression level must be an integer between 0 and 100")
+		}
+	}
+
+	return source, dest, compression, nil
 }
