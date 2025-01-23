@@ -97,6 +97,11 @@ func MoveFiles(files []ImageFile, dest string, compression int) error {
 			if err := compressAndMoveJPG(file.Path, newPath, compression); err != nil {
 				return err
 			}
+
+			// Delete the original file after successful compression
+			if err := os.Remove(file.Path); err != nil {
+				return fmt.Errorf("failed to delete original file %s: %v", file.Path, err)
+			}
 		} else {
 			// Move the file without compression
 			if err := os.Rename(file.Path, newPath); err != nil {
