@@ -81,15 +81,19 @@ func MoveFiles(files []ImageFile, dest string, compression int) error {
 		monthDayDir := filepath.Join(yearDir, fmt.Sprintf("%02d-%02d", file.Date.Month(), file.Date.Day()))
 
 		if err := os.MkdirAll(monthDayDir, os.ModePerm); err != nil {
-			return err
+			return fmt.Errorf("failed to create directory %s: %w", monthDayDir, err)
 		}
 
 		newPath := filepath.Join(monthDayDir, filepath.Base(file.Path))
 
 		// Check if the file already exists at the destination
 		if _, err := os.Stat(newPath); err == nil {
-			log.Printf("File %s already exists, skipping.", newPath)
+			// File exists, skipping
+			fmt.Printf("File already exists: %s, skipping...\n", newPath)
 			continue
+		} else if !os.IsNotExist(err) {
+			// Another error occurred
+			return fmt.Errorf("error checking destination file %s: %w", newPath, err)
 		}
 
 		// Compress and move JPG files if compression is enabled
@@ -105,12 +109,11 @@ func MoveFiles(files []ImageFile, dest string, compression int) error {
 		} else {
 			// Move the file without compression
 			if err := os.Rename(file.Path, newPath); err != nil {
-				return err
+				return fmt.Errorf("failed to move file %s to %s: %w", file.Path, newPath, err)
 			}
+			fmt.Printf("Moved file %s to %s\n", file.Path, newPath)
 		}
-
 	}
-
 	return nil
 }
 
@@ -141,6 +144,6 @@ func compressAndMoveJPG(src, dest string, quality int) error {
 	if err := jpeg.Encode(destFile, img, options); err != nil {
 		return fmt.Errorf("failed to encode image %s: %v", dest, err)
 	}
-
+	fmt.Printf("Compressed file %s created from %s\n", dest, src)
 	return nil
 }
