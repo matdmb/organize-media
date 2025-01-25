@@ -1,5 +1,7 @@
 # Project Name
 
+[![codecov](https://codecov.io/gh/matdmb/organize_pictures/graph/badge.svg?token=4UZGB2L9LB)](https://codecov.io/gh/matdmb/organize_pictures)
+
 Utility used to organize pictures based on the date
 
 ## Installation
