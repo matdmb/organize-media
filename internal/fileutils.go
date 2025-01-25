@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/rwcarlsen/goexif/exif"
 )
 
 type ImageFile struct {
@@ -20,7 +18,7 @@ type ImageFile struct {
 var allowedExtensions = []string{".jpg", ".nef"}
 
 // ListFiles traverses a directory and returns a slice of ImageFile structs for supported image formats.
-func ListFiles(directory string) ([]ImageFile, error) {
+func ListFilesWithExif(directory string, getExifDate func(string, func(string) ([]byte, error), func([]byte) (time.Time, error)) (time.Time, error)) ([]ImageFile, error) {
 	var files []ImageFile
 
 	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
@@ -31,12 +29,27 @@ func ListFiles(directory string) ([]ImageFile, error) {
 			return nil
 		}
 
-		// Extract EXIF date using the updated GetExifDate signature
-		date, err := GetExifDate(path, decodeExifFromFile, func(exifData *exif.Exif) (time.Time, error) {
-			return exifData.DateTime()
+		// Check for allowed extensions
+		ext := filepath.Ext(info.Name())
+		isAllowed := false
+		for _, allowed := range allowedExtensions {
+			if ext == allowed {
+				isAllowed = true
+				break
+			}
+		}
+		if !isAllowed {
+			return nil
+		}
+
+		// Extract EXIF date
+		date, err := getExifDate(path, nil, func(data []byte) (time.Time, error) {
+			// Return a mock or parsed date
+			return time.Now(), nil
 		})
 		if err != nil {
-			return nil // Ignore files without EXIF data or invalid EXIF data
+			// Skip files without EXIF data
+			return nil
 		}
 
 		files = append(files, ImageFile{
@@ -49,6 +62,7 @@ func ListFiles(directory string) ([]ImageFile, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return files, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/matdmb/organize_pictures/internal"
 )
@@ -46,7 +47,13 @@ func main() {
 		return
 	}
 
-	files, err := internal.ListFiles(source)
+	// Define the real GetExifDate function
+	realGetExifDate := func(path string, decoder func(string) ([]byte, error), parser func([]byte) (time.Time, error)) (time.Time, error) {
+		// Use real EXIF reading logic here
+		return internal.DefaultGetExifDate(path)
+	}
+
+	files, err := internal.ListFilesWithExif(source, realGetExifDate)
 	if err != nil {
 		log.Fatalf("Error listing files: %v", err)
 	}
