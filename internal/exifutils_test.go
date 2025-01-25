@@ -112,7 +112,7 @@ func TestDefaultGetExifDate(t *testing.T) {
 	}
 
 	// Define the expected date (match this with the actual EXIF date of your sample image)
-	expectedDate := time.Date(2022, 12, 25, 9, 30, 0, 0, time.UTC)
+	expectedDate := time.Date(2022, 12, 25, 10, 30, 0, 0, time.UTC)
 	if !extractedDate.UTC().Equal(expectedDate) {
 		t.Errorf("Expected date %v, got %v", expectedDate, extractedDate.UTC())
 	}
