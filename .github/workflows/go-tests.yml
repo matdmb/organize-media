@@ -27,6 +27,16 @@ jobs:
     - name: Install dependencies
       run: go mod tidy
 
-    # Step 4: Run tests
+    # Step 4: Install golangci-lint
+    - name: Install golangci-lint
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.63.4
+        golangci-lint --version
+
+    # Step 5: Run golangci-lint
+    - name: Run golangci-lint
+      run: golangci-lint run ./...
+
+    # Step 6: Run tests
     - name: Run tests
       run: go test ./... -v
