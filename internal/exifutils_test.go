@@ -95,3 +95,25 @@ func TestGetExifDate_WithDecodeExifFromFile(t *testing.T) {
 		t.Error("Expected an error for missing EXIF data, but got none")
 	}
 }
+
+func TestDefaultGetExifDate(t *testing.T) {
+	// Path to a sample image with EXIF metadata
+	sampleImagePath := "testdata/sample_with_exif.jpg"
+
+	// Ensure the sample image exists
+	if _, err := os.Stat(sampleImagePath); os.IsNotExist(err) {
+		t.Fatalf("Sample image with EXIF metadata not found: %v", err)
+	}
+
+	// Call DefaultGetExifDate to extract the date
+	extractedDate, err := DefaultGetExifDate(sampleImagePath)
+	if err != nil {
+		t.Fatalf("DefaultGetExifDate returned an error: %v", err)
+	}
+
+	// Define the expected date (match this with the actual EXIF date of your sample image)
+	expectedDate := time.Date(2022, 12, 25, 9, 30, 0, 0, time.UTC)
+	if !extractedDate.UTC().Equal(expectedDate) {
+		t.Errorf("Expected date %v, got %v", expectedDate, extractedDate.UTC())
+	}
+}
