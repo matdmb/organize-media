@@ -37,7 +37,10 @@ func main() {
 	}
 	fmt.Printf("Do you want to proceed with moving %d files? (y/n): ", totalFiles)
 	var response string
-	fmt.Scanln(&response)
+	if _, err := fmt.Scanln(&response); err != nil {
+		fmt.Printf("Error reading input: %v\n", err)
+		return
+	}
 	if strings.ToLower(response) != "y" {
 		fmt.Println("Operation cancelled.")
 		return
