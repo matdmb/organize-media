@@ -17,20 +17,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Remove old Go versions
-    - name: Remove old Go versions
-      run: sudo rm -rf /opt/hostedtoolcache/go
-
-    # Step 3: Set up Go environment
+    # Step 2: Set up Go environment
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.23'
 
-    # Step 4: Install dependencies
+    # Step 3: Install dependencies
     - name: Install dependencies
       run: go mod tidy
 
-    # Step 5: Run tests
+    # Step 4: Run tests
     - name: Run tests
       run: go test ./... -v
