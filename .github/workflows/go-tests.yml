@@ -43,11 +43,9 @@ jobs:
 
     # Step 7: Upload coverage to Codecov
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.out
         slug: ${{ github.repository }}
-        flags: unittests
         fail_ci_if_error: true
-        verbose: true
