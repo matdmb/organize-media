@@ -41,9 +41,11 @@ jobs:
     - name: Run tests and generate coverage
       run: go test ./... -coverprofile=coverage.out
 
-    # Step 7: Upload coverage artifact
-    - name: Upload Coverage Report
-      uses: actions/upload-artifact@v3
+    # Step 7: Upload coverage to Codecov
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
       with:
-        name: coverage
-        path: coverage.out
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: coverage.out
+        flags: unittests
+        fail_ci_if_error: true
