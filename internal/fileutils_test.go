@@ -7,6 +7,66 @@ import (
 	"time"
 )
 
+func createTestFiles(baseDir string, files map[string]string) error {
+	for path, content := range files {
+		fullPath := filepath.Join(baseDir, path)
+		if err := os.MkdirAll(filepath.Dir(fullPath), os.ModePerm); err != nil {
+			return err
+		}
+		if err := os.WriteFile(fullPath, []byte(content), os.ModePerm); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestListFiles(t *testing.T) {
+	// Setup temporary directory
+	tempDir, err := os.MkdirTemp("", "testfiles")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create test files
+	files := map[string]string{
+		"image1.jpg":        "fake jpg content",
+		"image2.nef":        "fake nef content",
+		"document.txt":      "this is a text file",
+		"subdir/image3.jpg": "fake jpg in subdir",
+	}
+	if err := createTestFiles(tempDir, files); err != nil {
+		t.Fatalf("Failed to create test files: %v", err)
+	}
+
+	// Mock EXIF date extraction function
+	mockGetExifDate := func(path string, decoder func(string) ([]byte, error), parser func([]byte) (time.Time, error)) (time.Time, error) {
+		return time.Now(), nil
+	}
+
+	// Test ListFiles with mock
+	imageFiles, err := ListFilesWithExif(tempDir, mockGetExifDate)
+	if err != nil {
+		t.Fatalf("ListFilesWithExif returned an error: %v", err)
+	}
+
+	// Verify results
+	if len(imageFiles) != 3 {
+		t.Errorf("Expected 3 image files, got %d", len(imageFiles))
+	}
+
+	expectedPaths := map[string]bool{
+		filepath.Join(tempDir, "image1.jpg"):        true,
+		filepath.Join(tempDir, "image2.nef"):        true,
+		filepath.Join(tempDir, "subdir/image3.jpg"): true,
+	}
+	for _, file := range imageFiles {
+		if !expectedPaths[file.Path] {
+			t.Errorf("Unexpected file path: %s", file.Path)
+		}
+	}
+}
+
 func TestMoveFilesWithExistingFile(t *testing.T) {
 	// Create temporary directories for source and destination
 	srcDir := t.TempDir()
