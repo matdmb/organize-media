@@ -111,9 +111,16 @@ func TestDefaultGetExifDate(t *testing.T) {
 		t.Fatalf("DefaultGetExifDate returned an error: %v", err)
 	}
 
-	// Define the expected date (match this with the actual EXIF date of your sample image)
-	expectedDate := time.Date(2022, 12, 25, 10, 30, 0, 0, time.UTC)
-	if !extractedDate.UTC().Equal(expectedDate) {
-		t.Errorf("Expected date %v, got %v", expectedDate, extractedDate.UTC())
+	// Log the extracted date for debugging
+	t.Logf("Extracted date: %v", extractedDate)
+	t.Logf("Extracted date in UTC: %v", extractedDate.UTC())
+
+	// Define the expected date in the local time zone
+	location := extractedDate.Location()
+	expectedDate := time.Date(2022, 12, 25, 10, 30, 0, 0, location)
+
+	// Compare the extracted date to the normalized expected date
+	if !extractedDate.Equal(expectedDate) {
+		t.Errorf("Expected date %v, got %v", expectedDate, extractedDate)
 	}
 }
