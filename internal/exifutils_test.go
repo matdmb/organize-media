@@ -77,3 +77,21 @@ func TestGetExifDate_FileDoesNotExist(t *testing.T) {
 		t.Error("Expected an error for non-existent file, but got none")
 	}
 }
+
+func TestGetExifDate_WithDecodeExifFromFile(t *testing.T) {
+	// Create a temporary file to simulate an image with EXIF data
+	tempFile, err := os.CreateTemp("", "test_exif.jpg")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	// Call GetExifDate with decodeExifFromFile
+	_, err = GetExifDate(tempFile.Name(), decodeExifFromFile, func(exifData *exif.Exif) (time.Time, error) {
+		return exifData.DateTime()
+	})
+
+	if err == nil {
+		t.Error("Expected an error for missing EXIF data, but got none")
+	}
+}

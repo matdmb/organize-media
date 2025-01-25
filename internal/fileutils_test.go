@@ -65,3 +65,65 @@ func TestMoveFilesWithExistingFile(t *testing.T) {
 
 	// Verify the debug output (optional if debug logs are added)
 }
+
+func TestCountFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create test files
+	file1 := filepath.Join(dir, "file1.jpg")
+	os.WriteFile(file1, []byte{}, 0644)
+	file2 := filepath.Join(dir, "file2.jpg")
+	os.WriteFile(file2, []byte{}, 0644)
+
+	count, err := CountFiles(dir)
+	if err != nil {
+		t.Fatalf("CountFiles returned an error: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("Expected 2 files, got %d", count)
+	}
+}
+
+func TestMoveFiles(t *testing.T) {
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create test files with mock dates
+	file1 := filepath.Join(sourceDir, "file1.jpg")
+	os.WriteFile(file1, []byte{}, 0644)
+	file2 := filepath.Join(sourceDir, "file2.jpg")
+	os.WriteFile(file2, []byte{}, 0644)
+
+	mockFiles := []ImageFile{
+		{Path: file1, Date: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{Path: file2, Date: time.Date(2023, 1, 2, 0, 0, 0, 0, time.UTC)},
+	}
+
+	err := MoveFiles(mockFiles, destDir, -1)
+	if err != nil {
+		t.Fatalf("MoveFiles returned an error: %v", err)
+	}
+
+	// Check if files moved correctly
+	for _, file := range mockFiles {
+		newPath := filepath.Join(destDir, file.Date.Format("2006"), file.Date.Format("01-02"), filepath.Base(file.Path))
+		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+			t.Errorf("File %s was not moved to the correct location", file.Path)
+		}
+	}
+}
+
+func TestCompressAndMoveJPG(t *testing.T) {
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create a test JPG file
+	file1 := filepath.Join(sourceDir, "file1.jpg")
+	os.WriteFile(file1, []byte{}, 0644)
+
+	err := compressAndMoveJPG(file1, destDir, 75)
+	if err == nil {
+		t.Error("Expected error for not implemented compressAndMoveJPG, but got none")
+	}
+}
