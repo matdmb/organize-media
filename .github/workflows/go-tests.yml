@@ -37,6 +37,13 @@ jobs:
     - name: Run golangci-lint
       run: golangci-lint run ./...
 
-    # Step 6: Run tests
-    - name: Run tests
-      run: go test ./... -v
+    # Step 6: Run tests with coverage
+    - name: Run tests and generate coverage
+      run: go test ./... -coverprofile=coverage.out
+
+    # Step 7: Upload coverage artifact
+    - name: Upload Coverage Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage
+        path: coverage.out
