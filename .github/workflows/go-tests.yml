@@ -47,5 +47,6 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.out
+        slug: ${{ github.repository }}
         flags: unittests
         fail_ci_if_error: true
