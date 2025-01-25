@@ -97,15 +97,12 @@ func TestGetExifDate_WithDecodeExifFromFile(t *testing.T) {
 }
 
 func TestDefaultGetExifDate(t *testing.T) {
-	// Path to a sample image with EXIF metadata
+	// Test case 1: Valid EXIF metadata
 	sampleImagePath := "testdata/sample_with_exif.jpg"
-
-	// Ensure the sample image exists
 	if _, err := os.Stat(sampleImagePath); os.IsNotExist(err) {
 		t.Fatalf("Sample image with EXIF metadata not found: %v", err)
 	}
 
-	// Call DefaultGetExifDate to extract the date
 	extractedDate, err := DefaultGetExifDate(sampleImagePath)
 	if err != nil {
 		t.Fatalf("DefaultGetExifDate returned an error: %v", err)
@@ -122,5 +119,36 @@ func TestDefaultGetExifDate(t *testing.T) {
 	// Compare the extracted date to the normalized expected date
 	if !extractedDate.Equal(expectedDate) {
 		t.Errorf("Expected date %v, got %v", expectedDate, extractedDate)
+	}
+
+	// Test case 2: File does not exist
+	nonExistentPath := "testdata/non_existent_file.jpg"
+	_, err = DefaultGetExifDate(nonExistentPath)
+	if err == nil {
+		t.Errorf("Expected an error for non-existent file, but got none")
+	}
+
+	// Test case 3: File without EXIF metadata
+	fileWithoutExifPath := "testdata/sample_without_exif.jpg"
+	/*if _, err := os.Create(fileWithoutExifPath); err != nil {
+		t.Fatalf("Failed to create sample file without EXIF metadata: %v", err)
+	}
+	//defer os.Remove(fileWithoutExifPath) // Clean up after test
+	*/
+	_, err = DefaultGetExifDate(fileWithoutExifPath)
+	if err == nil {
+		t.Errorf("Expected an error for file without EXIF metadata, but got none")
+	}
+
+	// Test case 4: Corrupted or invalid EXIF file
+	corruptedFilePath := "testdata/sample_corrupted_exif.jpg"
+	/*	if _, err := os.Create(corruptedFilePath); err != nil {
+			t.Fatalf("Failed to create corrupted EXIF file: %v", err)
+		}
+		defer os.Remove(corruptedFilePath) // Clean up after test
+	*/
+	_, err = DefaultGetExifDate(corruptedFilePath)
+	if err == nil {
+		t.Errorf("Expected an error for corrupted EXIF file, but got none")
 	}
 }
