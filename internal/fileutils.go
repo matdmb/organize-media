@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/rwcarlsen/goexif/exif"
 )
 
 type ImageFile struct {
@@ -19,27 +20,36 @@ type ImageFile struct {
 var allowedExtensions = []string{".jpg", ".nef"}
 
 // ListFiles traverses a directory and returns a slice of ImageFile structs for supported image formats.
-func ListFiles(dir string) ([]ImageFile, error) {
+func ListFiles(directory string) ([]ImageFile, error) {
 	var files []ImageFile
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		// Check if the file has an allowed extension
-		if !info.IsDir() && isAllowedExtension(filepath.Ext(info.Name())) {
-			fileDate, err := GetExifDate(path)
-			if err != nil {
-				log.Printf("Warning: could not get EXIF date for file %s: %v", path, err)
-				return nil
-			}
-
-			files = append(files, ImageFile{Path: path, Date: fileDate})
+		if info.IsDir() {
+			return nil
 		}
+
+		// Extract EXIF date using the updated GetExifDate signature
+		date, err := GetExifDate(path, decodeExifFromFile, func(exifData *exif.Exif) (time.Time, error) {
+			return exifData.DateTime()
+		})
+		if err != nil {
+			return nil // Ignore files without EXIF data or invalid EXIF data
+		}
+
+		files = append(files, ImageFile{
+			Path: path,
+			Date: date,
+		})
 		return nil
 	})
 
-	return files, err
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 // isAllowedExtension checks if the file extension is in the list of allowed extensions.
