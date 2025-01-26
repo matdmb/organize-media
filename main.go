@@ -1,102 +1,130 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
-	"strconv"
+	"path/filepath"
 	"strings"
 
 	"github.com/matdmb/organize_pictures/internal"
 )
 
+type Params struct {
+	Source        string
+	Destination   string
+	Compression   int
+	SkipUserInput bool // New flag to bypass user input
+}
+
 func main() {
-	if err := run(os.Args, os.Stdin); err != nil {
-		fmt.Printf("Error: %v\n", err)
+	// Define flags
+	source := flag.String("source", "", "Path to the source directory containing pictures")
+	dest := flag.String("dest", "", "Path to the destination directory for organized pictures")
+	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optional)")
+
+	// Parse the flags
+	flag.Parse()
+
+	// Validate required flags
+	if *source == "" || *dest == "" {
+		fmt.Println("Usage:")
+		flag.PrintDefaults()
 		os.Exit(1)
+	}
+
+	// Initialize Params struct
+	params := &Params{
+		Source:      *source,
+		Destination: *dest,
+		Compression: *compression,
+	}
+
+	// Run the main logic
+	if err := run(params); err != nil {
+		log.Fatalf("Error: %v", err)
 	}
 }
 
-func run(args []string, input *os.File) error {
-	source, dest, compression, err := readParameters(args)
-	if err != nil {
-		return err
+func run(params *Params) error {
+	// Validate source directory existence
+	if _, err := os.Stat(params.Source); os.IsNotExist(err) {
+		return fmt.Errorf("source directory does not exist: %s", params.Source)
 	}
 
-	log.Printf("Source directory: %s", source)
-	log.Printf("Destination directory: %s", dest)
+	// Validate destination directory existence
+	if _, err := os.Stat(params.Destination); os.IsNotExist(err) {
+		return fmt.Errorf("destination directory does not exist: %s", params.Destination)
+	}
 
-	if compression >= 0 {
-		log.Printf("Compression level: %d", compression)
+	// Validate compression range
+	if params.Compression < -1 || params.Compression > 100 {
+		return fmt.Errorf("compression level must be an integer between 0 and 100")
+	}
+
+	log.Printf("Source directory: %s", params.Source)
+	log.Printf("Destination directory: %s", params.Destination)
+
+	if params.Compression >= 0 {
+		log.Printf("Compression level: %d", params.Compression)
 	} else {
 		log.Printf("Compression: not applied")
 	}
 
-	totalFiles, err := internal.CountFiles(source)
+	// Count files in the source directory
+	totalFiles, err := internal.CountFiles(params.Source)
 	if err != nil {
 		return fmt.Errorf("error counting files: %v", err)
 	}
 
-	fmt.Printf("Total files to process: %d\n", totalFiles)
 	if totalFiles == 0 {
-		fmt.Println("No files to process. Exiting.")
-		return nil
+		return fmt.Errorf("no files to process in source directory")
 	}
 
-	fmt.Printf("Do you want to proceed with processing %d files? (y/n): ", totalFiles)
-	var response string
-	if _, err := fmt.Fscanln(input, &response); err != nil {
-		return fmt.Errorf("error reading input: %v", err)
-	}
-	if strings.ToLower(response) != "y" {
-		fmt.Println("Operation cancelled.")
-		return nil
+	fmt.Printf("Total files to process: %d\n", totalFiles)
+
+	if !params.SkipUserInput {
+		// Ask for user confirmation
+		fmt.Printf("Do you want to proceed with processing %d files? (y/n): ", totalFiles)
+		var response string
+		if _, err := fmt.Fscanln(os.Stdin, &response); err != nil {
+			return fmt.Errorf("error reading input: %v", err)
+		}
+		if strings.ToLower(response) != "y" {
+			fmt.Println("Operation cancelled.")
+			return fmt.Errorf("operation cancelled by user")
+		}
+	} else {
+		log.Println("Skipping user input confirmation (test mode).")
 	}
 
-	files, err := internal.ListFiles(source)
+	// List files in the source directory
+	files, err := internal.ListFiles(params.Source)
 	if err != nil {
 		return fmt.Errorf("error listing files: %v", err)
 	}
 
-	summary, err := internal.MoveFiles(files, dest, compression)
+	// Ensure destination directory is writable
+	testFile := filepath.Join(params.Destination, "test_write.tmp")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		return fmt.Errorf("destination directory is not writable: %v", err)
+	}
+	// Remove the test file after the check
+	defer os.Remove(testFile)
+
+	// Move and optionally compress files
+	summary, err := internal.MoveFiles(files, params.Destination, params.Compression)
 	if err != nil {
 		return fmt.Errorf("error moving files: %v", err)
 	}
 
+	// Print processing summary
 	fmt.Printf("\nProcessing Summary:\n")
-	fmt.Printf("%d files have been successfully processed.\n", len(files))
+	fmt.Printf("%d files have been successfully processed.\n", summary.Moved+summary.Compressed)
 	fmt.Printf("Files moved without compression: %d\n", summary.Moved)
 	fmt.Printf("Files compressed and moved: %d\n", summary.Compressed)
 	fmt.Printf("Files skipped: %d\n", summary.Skipped)
 
 	return nil
-}
-
-func readParameters(args []string) (string, string, int, error) {
-	if len(args) < 3 || len(args) > 4 {
-		return "", "", -1, fmt.Errorf("usage: %s <source_dir> <destination_dir> [compression (0-100)]", args[0])
-	}
-
-	source := args[1]
-	dest := args[2]
-
-	if _, err := os.Stat(source); os.IsNotExist(err) {
-		return "", "", -1, fmt.Errorf("source directory does not exist: %s", source)
-	}
-
-	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		return "", "", -1, fmt.Errorf("destination directory does not exist: %s", dest)
-	}
-
-	// Default compression level to -1 (no compression) if not provided
-	compression := -1
-	if len(args) == 4 {
-		var err error
-		compression, err = strconv.Atoi(args[3])
-		if err != nil || compression < 0 || compression > 100 {
-			return "", "", -1, fmt.Errorf("compression level must be an integer between 0 and 100")
-		}
-	}
-
-	return source, dest, compression, nil
 }
