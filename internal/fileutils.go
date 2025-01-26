@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,60 +16,40 @@ type ImageFile struct {
 	Date time.Time
 }
 
+type ProcessingSummary struct {
+	Moved      int
+	Compressed int
+	Skipped    int
+}
+
 var allowedExtensions = []string{".jpg", ".nef"}
 
 // ListFiles traverses a directory and returns a slice of ImageFile structs for supported image formats.
-func ListFilesWithExif(directory string, getExifDate func(string, func(string) ([]byte, error), func([]byte) (time.Time, error)) (time.Time, error)) ([]ImageFile, error) {
+func ListFiles(directory string) ([]ImageFile, error) {
 	var files []ImageFile
 
 	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			return nil
-		}
 
-		// Check for allowed extensions
-		ext := filepath.Ext(info.Name())
-		isAllowed := false
-		for _, allowed := range allowedExtensions {
-			if ext == allowed {
-				isAllowed = true
-				break
+		if !info.IsDir() && isAllowedExtension(filepath.Ext(info.Name())) {
+			fileDate, err := GetExifDate(path)
+			if err != nil {
+				log.Printf("Warning: could not get EXIF date for file %s: %v", path, err)
+				return nil
 			}
+			files = append(files, ImageFile{Path: path, Date: fileDate})
 		}
-		if !isAllowed {
-			return nil
-		}
-
-		// Extract EXIF date
-		date, err := getExifDate(path, nil, func(data []byte) (time.Time, error) {
-			// Return a mock or parsed date
-			return time.Now(), nil
-		})
-		if err != nil {
-			// Skip files without EXIF data
-			return nil
-		}
-
-		files = append(files, ImageFile{
-			Path: path,
-			Date: date,
-		})
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return files, nil
+	return files, err
 }
 
 // isAllowedExtension checks if the file extension is in the list of allowed extensions.
 func isAllowedExtension(ext string) bool {
-	ext = strings.ToLower(ext)
+	ext = strings.ToLower(ext) // Normalize to lowercase
 	for _, allowed := range allowedExtensions {
 		if ext == allowed {
 			return true
@@ -98,14 +79,20 @@ func CountFiles(dir string) (int, error) {
 
 // MoveFiles moves image files to a destination directory, creating year/month-day subdirectories.
 // If a compression level is specified (0-100), JPG files are compressed before being moved.
-func MoveFiles(files []ImageFile, dest string, compression int) error {
+func MoveFiles(files []ImageFile, dest string, compression int) (ProcessingSummary, error) {
+	var summary ProcessingSummary
+
 	for _, file := range files {
+
+		// Log the file being processed
+		fmt.Printf("Processing file: %s (Extension: %s)\n", file.Path, filepath.Ext(file.Path))
+
 		// Create year and month-day directories
 		yearDir := filepath.Join(dest, fmt.Sprintf("%d", file.Date.Year()))
 		monthDayDir := filepath.Join(yearDir, fmt.Sprintf("%02d-%02d", file.Date.Month(), file.Date.Day()))
 
 		if err := os.MkdirAll(monthDayDir, os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", monthDayDir, err)
+			return summary, fmt.Errorf("failed to create directory %s: %w", monthDayDir, err)
 		}
 
 		newPath := filepath.Join(monthDayDir, filepath.Base(file.Path))
@@ -114,31 +101,35 @@ func MoveFiles(files []ImageFile, dest string, compression int) error {
 		if _, err := os.Stat(newPath); err == nil {
 			// File exists, skipping
 			fmt.Printf("File already exists: %s, skipping...\n", newPath)
+			summary.Skipped++
 			continue
 		} else if !os.IsNotExist(err) {
 			// Another error occurred
-			return fmt.Errorf("error checking destination file %s: %w", newPath, err)
+			return summary, fmt.Errorf("error checking destination file %s: %w", newPath, err)
 		}
 
 		// Compress and move JPG files if compression is enabled
 		if strings.ToLower(filepath.Ext(file.Path)) == ".jpg" && compression >= 0 {
 			if err := compressAndMoveJPG(file.Path, newPath, compression); err != nil {
-				return err
+				return summary, err
 			}
 
 			// Delete the original file after successful compression
 			if err := os.Remove(file.Path); err != nil {
-				return fmt.Errorf("failed to delete original file %s: %v", file.Path, err)
+				return summary, fmt.Errorf("failed to delete original file %s: %v", file.Path, err)
 			}
+			fmt.Printf("Compressed and moved file: %s\n", newPath)
+			summary.Compressed++
 		} else {
 			// Move the file without compression
 			if err := os.Rename(file.Path, newPath); err != nil {
-				return fmt.Errorf("failed to move file %s to %s: %w", file.Path, newPath, err)
+				return summary, fmt.Errorf("failed to move file %s to %s: %w", file.Path, newPath, err)
 			}
-			fmt.Printf("Moved file %s to %s\n", file.Path, newPath)
+			fmt.Printf("Moved file: %s\n", newPath)
+			summary.Moved++
 		}
 	}
-	return nil
+	return summary, nil
 }
 
 // compressAndMoveJPG compresses a JPG image to the specified quality level and moves it to the destination.
