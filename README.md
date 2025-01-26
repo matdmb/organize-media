@@ -34,12 +34,12 @@ make build
 ## How to Run the Application
 
 ```bash
-./bin/organize-pictures <source-folder> <destination-folder> [compression]
+./bin/organize-pictures -source <source-folder> -dest <destination-folder> [-compression <compression_level>]
 ```
 
-- `<source-folder>`: Path to the folder containing your pictures.
-- `<destination-folder>`: Path to the folder where organized pictures will be stored.
-- `[compression]`: Optional; enables compression for JPG files.
+- `-source`: Path to the folder containing your pictures.
+- `-dest`: Path to the folder where organized pictures will be stored.
+- `-compression`: (Optional) Compression level for JPG files (0-100). Defaults to -1 (no compression applied).
 
 Alternatively, use the `make run` command if source and destination folders are set in the `Makefile`.
 

@@ -2,121 +2,149 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
-func TestRunInvalidArgs(t *testing.T) {
-	// Invalid args (missing source or destination)
-	args := []string{"app"}
-	err := run(args, os.Stdin)
-	if err == nil {
-		t.Fatal("Expected an error for missing arguments, but got none")
+func TestRun(t *testing.T) {
+	// Define table of test cases
+	tests := []struct {
+		name        string
+		setup       func() *Params // Function to set up test parameters
+		expectError bool           // Whether an error is expected
+	}{
+		{
+			name: "ValidParams",
+			setup: func() *Params {
+				srcDir := t.TempDir()
+				destDir := t.TempDir()
+
+				// Create a mock file in the source directory
+				mockFile := filepath.Join(srcDir, "test.jpg")
+				if _, err := os.Create(mockFile); err != nil {
+					t.Fatalf("Failed to create mock file: %v", err)
+				}
+
+				return &Params{
+					Source:        srcDir,
+					Destination:   destDir,
+					Compression:   -1,   // No compression
+					SkipUserInput: true, // Skip user input for automated testing
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "WithCompression",
+			setup: func() *Params {
+				srcDir := t.TempDir()
+				destDir := t.TempDir()
+
+				// Create a mock file in the source directory
+				mockFile := filepath.Join(srcDir, "test.jpg")
+				if _, err := os.Create(mockFile); err != nil {
+					t.Fatalf("Failed to create mock file: %v", err)
+				}
+
+				return &Params{
+					Source:        srcDir,
+					Destination:   destDir,
+					Compression:   50,   // Valid compression value
+					SkipUserInput: true, // Skip user input for automated testing
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "MissingSource",
+			setup: func() *Params {
+				return &Params{
+					Source:      "/non/existent/source",
+					Destination: t.TempDir(),
+					Compression: -1,
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "MissingDestination",
+			setup: func() *Params {
+				return &Params{
+					Source:      t.TempDir(),
+					Destination: "/non/existent/destination",
+					Compression: -1,
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "InvalidCompressionValue",
+			setup: func() *Params {
+				srcDir := t.TempDir()
+				destDir := t.TempDir()
+
+				return &Params{
+					Source:        srcDir,
+					Destination:   destDir,
+					Compression:   200, // Invalid compression value
+					SkipUserInput: true,
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "ReadOnlyDestination",
+			setup: func() *Params {
+				srcDir := t.TempDir()
+				destDir := t.TempDir()
+
+				// Create a mock file in the source directory
+				mockFile := filepath.Join(srcDir, "test.jpg")
+				if _, err := os.Create(mockFile); err != nil {
+					t.Fatalf("Failed to create mock file: %v", err)
+				}
+
+				// Make the destination directory read-only
+				if err := os.Chmod(destDir, 0444); err != nil {
+					t.Fatalf("Failed to make destination directory read-only: %v", err)
+				}
+
+				return &Params{
+					Source:        srcDir,
+					Destination:   destDir,
+					Compression:   -1,
+					SkipUserInput: true,
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "EmptySourceDirectory",
+			setup: func() *Params {
+				return &Params{
+					Source:        t.TempDir(), // Empty source directory
+					Destination:   t.TempDir(),
+					Compression:   -1,
+					SkipUserInput: true,
+				}
+			},
+			expectError: true,
+		},
 	}
 
-	// Check the error message
-	expectedErr := "usage: app <source_dir> <destination_dir> [compression (0-100)]"
-	if err.Error() != expectedErr {
-		t.Errorf("Expected error '%s', got '%s'", expectedErr, err.Error())
-	}
-}
+	// Iterate through each test case
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup test parameters
+			params := tt.setup()
 
-func TestReadParametersValid(t *testing.T) {
-	// Step 1: Create temporary source and destination directories
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
+			// Execute the run function
+			err := run(params)
 
-	// Step 2: Call readParameters with valid arguments
-	args := []string{"app", srcDir, destDir, "50"}
-	source, dest, compression, err := readParameters(args)
-	if err != nil {
-		t.Fatalf("Expected no error, got: %v", err)
-	}
-
-	// Step 3: Verify the results
-	if source != srcDir {
-		t.Errorf("Expected source: %s, got: %s", srcDir, source)
-	}
-	if dest != destDir {
-		t.Errorf("Expected destination: %s, got: %s", destDir, dest)
-	}
-	if compression != 50 {
-		t.Errorf("Expected compression: 50, got: %d", compression)
-	}
-}
-
-func TestReadParametersMissingArguments(t *testing.T) {
-	// Step 1: Call readParameters with missing arguments
-	args := []string{"app", "/some/source"}
-	_, _, _, err := readParameters(args)
-	if err == nil {
-		t.Fatal("Expected an error for missing arguments, but got none")
-	}
-
-	// Step 2: Verify the error message
-	expectedErr := "usage: app <source_dir> <destination_dir> [compression (0-100)]"
-	if err.Error() != expectedErr {
-		t.Errorf("Expected error: %s, got: %s", expectedErr, err.Error())
-	}
-}
-
-func TestReadParametersInvalidCompression(t *testing.T) {
-	// Step 1: Create temporary source and destination directories
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
-
-	// Step 2: Call readParameters with invalid compression values
-	args := []string{"app", srcDir, destDir, "invalid"}
-	_, _, _, err := readParameters(args)
-	if err == nil {
-		t.Fatal("Expected an error for invalid compression, but got none")
-	}
-
-	// Verify the error message
-	expectedErr := "compression level must be an integer between 0 and 100"
-	if err.Error() != expectedErr {
-		t.Errorf("Expected error: %s, got: %s", expectedErr, err.Error())
-	}
-
-	// Step 3: Test out-of-range compression
-	args = []string{"app", srcDir, destDir, "200"}
-	_, _, _, err = readParameters(args)
-	if err == nil {
-		t.Fatal("Expected an error for out-of-range compression, but got none")
-	}
-}
-
-func TestReadParametersNonexistentSource(t *testing.T) {
-	// Step 1: Create a temporary destination directory
-	destDir := t.TempDir()
-
-	// Step 2: Call readParameters with a nonexistent source directory
-	args := []string{"app", "/nonexistent/source", destDir}
-	_, _, _, err := readParameters(args)
-	if err == nil {
-		t.Fatal("Expected an error for nonexistent source directory, but got none")
-	}
-
-	// Verify the error message
-	expectedErr := "source directory does not exist: /nonexistent/source"
-	if err.Error() != expectedErr {
-		t.Errorf("Expected error: %s, got: %s", expectedErr, err.Error())
-	}
-}
-
-func TestReadParametersNonexistentDestination(t *testing.T) {
-	// Step 1: Create a temporary source directory
-	srcDir := t.TempDir()
-
-	// Step 2: Call readParameters with a nonexistent destination directory
-	args := []string{"app", srcDir, "/nonexistent/dest"}
-	_, _, _, err := readParameters(args)
-	if err == nil {
-		t.Fatal("Expected an error for nonexistent destination directory, but got none")
-	}
-
-	// Verify the error message
-	expectedErr := "destination directory does not exist: /nonexistent/dest"
-	if err.Error() != expectedErr {
-		t.Errorf("Expected error: %s, got: %s", expectedErr, err.Error())
+			// Validate the outcome
+			if (err != nil) != tt.expectError {
+				t.Errorf("run() test %q failed. Expected error: %v, got: %v", tt.name, tt.expectError, err)
+			}
+		})
 	}
 }

@@ -15,6 +15,6 @@ clean:
 
 # Command to run the application
 run: build
-	./$(BIN_DIR)/$(APP_NAME) ../../Pictures/Import/ ../../Pictures/RAW/ 50
+	./$(BIN_DIR)/$(APP_NAME) -source ../../Pictures/Import/ -dest ../../Pictures/RAW/ -compression 50
 
 .PHONY: build clean run
