@@ -1,11 +1,8 @@
 # Tool for managing picture files
 A utility to organize pictures by their taken date. RAW files are moved to designated folders, while JPG files can be optionally compressed before being relocated.
 
-## Test coverage insights
-[![codecov](https://codecov.io/gh/matdmb/organize_pictures/graph/badge.svg?token=4UZGB2L9LB)](https://codecov.io/gh/matdmb/organize_pictures)
-
 ## Codecov Coverage Graph
-![Codecov Sunburst Graph](https://codecov.io/gh/matdmb/organize_pictures/graphs/sunburst.svg?token=4UZGB2L9LB)
+[![codecov](https://codecov.io/gh/matdmb/organize_pictures/branch/main/graph/badge.svg?token=4UZGB2L9LB)](https://codecov.io/gh/matdmb/organize_pictures)
 
 ## Installation
 
