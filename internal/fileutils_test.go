@@ -342,3 +342,68 @@ func TestFileRemovalAfterProcessing(t *testing.T) {
 		}
 	}
 }
+
+func TestListFilesWithTestdata(t *testing.T) {
+	// Step 1: Point to the testdata folder
+	testdataDir := "testdata"
+
+	// Step 2: Call ListFiles
+	result, err := ListFiles(testdataDir)
+	if err != nil {
+		t.Fatalf("ListFiles failed: %v", err)
+	}
+
+	// Step 3: Verify the results
+	expectedPaths := []string{
+		filepath.Join(testdataDir, "sample_with_exif.jpg"), // File with valid EXIF
+	}
+
+	// Check that the number of files matches the expectation
+	if len(result) != len(expectedPaths) {
+		t.Errorf("Expected %d files, got %d", len(expectedPaths), len(result))
+	}
+
+	// Check that each expected file path exists in the result
+	for _, expectedPath := range expectedPaths {
+		found := false
+		for _, file := range result {
+			if file.Path == expectedPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected file not found in result: %s", expectedPath)
+		}
+	}
+}
+
+func TestListFilesHandlesExifErrors(t *testing.T) {
+	testdataDir := "testdata"
+
+	// Call ListFiles
+	result, err := ListFiles(testdataDir)
+	if err != nil {
+		t.Fatalf("ListFiles failed: %v", err)
+	}
+
+	// Verify that only valid files are included in the output
+	for _, file := range result {
+		if file.Path == filepath.Join(testdataDir, "sample_without_exif.jpg") ||
+			file.Path == filepath.Join(testdataDir, "sample_corrupted_exif.jpg") {
+			t.Errorf("File with invalid EXIF data should not be included: %s", file.Path)
+		}
+	}
+
+	// Ensure sample_with_exif.jpg is present
+	found := false
+	for _, file := range result {
+		if file.Path == filepath.Join(testdataDir, "sample_with_exif.jpg") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Valid file with EXIF data was not included")
+	}
+}
