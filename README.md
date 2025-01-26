@@ -5,6 +5,7 @@ A utility to organize pictures by their taken date. RAW files are moved to desig
 
 ## Codecov Coverage
 [![codecov](https://codecov.io/gh/matdmb/organize_pictures/branch/main/graph/badge.svg?token=4UZGB2L9LB)](https://codecov.io/gh/matdmb/organize_pictures)
+
 _Current test coverage as tracked by Codecov._
 
 ## Features
@@ -14,7 +15,7 @@ _Current test coverage as tracked by Codecov._
 - Lightweight and simple to use.
 
 ## Prerequisites
-- [Go](https://go.dev/) version `x.x.x` or later.
+- [Go](https://go.dev/) version `1.20` or later.
 - `make` utility (for running commands).
 
 ## Installation
