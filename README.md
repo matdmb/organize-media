@@ -4,6 +4,9 @@ A utility to organize pictures by their taken date. RAW files are moved to desig
 ## Test coverage insights
 [![codecov](https://codecov.io/gh/matdmb/organize_pictures/graph/badge.svg?token=4UZGB2L9LB)](https://codecov.io/gh/matdmb/organize_pictures)
 
+## Codecov Coverage Graph
+![Codecov Sunburst Graph](https://codecov.io/gh/matdmb/organize_pictures/graphs/sunburst.svg?token=4UZGB2L9LB)
+
 ## Installation
 
 ```bash
