@@ -11,7 +11,7 @@ build:
 # Cleaning
 clean:
 	@rm -rf $(BIN_DIR)                         # Delete the bin directory
-	rm -f coverage.out						   # Delete the coverage file
+	@rm -f coverage.out						   # Delete the coverage file
 
 # Command to run the application
 run: build
