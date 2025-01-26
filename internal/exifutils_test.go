@@ -42,10 +42,11 @@ func TestGetExifDate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Call the function with the provided file path
 			date, err := GetExifDate(tt.filePath)
+			t.Logf("Parsed date: %v (Location: %v)", date, date.Location())
 
-			// Define the expected date in the local time zone
-			//location := date.Location()
-			//tt.expectedDate = tt.expectedDate.In(location)
+			// Define the expected date (match this with the actual EXIF date of your sample image)
+			location := date.Location()
+			tt.expectedDate = time.Date(2022, 12, 25, 10, 30, 0, 0, location)
 
 			// Check for expected error
 			if (err != nil) != tt.expectError {
