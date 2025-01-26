@@ -6,12 +6,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/matdmb/organize_pictures/internal"
 )
 
 func main() {
+
 	source, dest, compression, err := readParameters()
 	if err != nil {
 		log.Fatalf("Error: %v", err)
@@ -30,13 +30,14 @@ func main() {
 		log.Fatalf("Error counting files: %v", err)
 	}
 
-	fmt.Printf("Total files to move: %d\n", totalFiles)
+	fmt.Printf("Total files to process: %d\n", totalFiles)
 
 	if totalFiles == 0 {
-		fmt.Println("No files to move. Exiting.")
+		fmt.Println("No files to process. Exiting.")
 		return
 	}
-	fmt.Printf("Do you want to proceed with moving %d files? (y/n): ", totalFiles)
+
+	fmt.Printf("Do you want to proceed with processing %d files? (y/n): ", totalFiles)
 	var response string
 	if _, err := fmt.Scanln(&response); err != nil {
 		fmt.Printf("Error reading input: %v\n", err)
@@ -47,23 +48,21 @@ func main() {
 		return
 	}
 
-	// Define the real GetExifDate function
-	realGetExifDate := func(path string, decoder func(string) ([]byte, error), parser func([]byte) (time.Time, error)) (time.Time, error) {
-		// Use real EXIF reading logic here
-		return internal.DefaultGetExifDate(path)
-	}
-
-	files, err := internal.ListFilesWithExif(source, realGetExifDate)
+	files, err := internal.ListFiles(source)
 	if err != nil {
 		log.Fatalf("Error listing files: %v", err)
 	}
 
-	err = internal.MoveFiles(files, dest, compression)
+	summary, err := internal.MoveFiles(files, dest, compression)
 	if err != nil {
 		log.Fatalf("Error moving files: %v", err)
 	}
 
-	fmt.Printf("%d files have been successfully moved.\n", len(files))
+	fmt.Printf("\nProcessing Summary:\n")
+	fmt.Printf("%d files have been successfully processed.\n", len(files))
+	fmt.Printf("Files moved without compression: %d\n", summary.Moved)
+	fmt.Printf("Files compressed and moved: %d\n", summary.Compressed)
+	fmt.Printf("Files skipped: %d\n", summary.Skipped)
 }
 
 func readParameters() (string, string, int, error) {
