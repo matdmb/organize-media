@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: "weekly"            # Check for updates weekly
       day: "thursday"               # Run on Thursdays
-      time: "07:00"                 # At 7:00 AM UTC
+      time: "07:30"                 # At 7:30 AM UTC
     open-pull-requests-limit: 5     # Limit the number of open PRs
 
   # Update GitHub Actions workflows (including Go versions)
@@ -15,5 +15,5 @@ updates:
     schedule:
       interval: "weekly"            # Check for updates weekly
       day: "thursday"               # Run on Thursdays
-      time: "07:00"                 # At 7:00 AM UTC
+      time: "07:30"                 # At 7:30 AM UTC
     open-pull-requests-limit: 3
