@@ -9,7 +9,7 @@ updates:
       time: "07:00"                 # At 7:00 AM UTC
     open-pull-requests-limit: 5     # Limit the number of open PRs
 
-  # Update GitHub Actions workflows
+  # Update GitHub Actions workflows (including Go versions)
   - package-ecosystem: "github-actions"
     directory: "/"                  # Root directory of the repository
     schedule:
@@ -17,12 +17,3 @@ updates:
       day: "thursday"               # Run on Thursdays
       time: "07:00"                 # At 7:00 AM UTC
     open-pull-requests-limit: 3
-
-  # Update Go versions in workflows (indirectly via github-actions)
-  - package-ecosystem: "github-actions"
-    directory: "/"                  # Scan workflows for Go runtime updates
-    schedule:
-      interval: "weekly"            # Check for updates weekly
-      day: "thursday"               # Run on Thursdays
-      time: "07:00"                 # At 7:00 AM UTC
-    open-pull-requests-limit: 1
