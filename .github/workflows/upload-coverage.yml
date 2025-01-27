@@ -13,7 +13,7 @@ jobs:
     steps:
       # Step 1: Checkout code (optional, for metadata like commit hash)
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Step 2: Download the coverage artifact
       - name: Download coverage artifact
