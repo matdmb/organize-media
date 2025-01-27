@@ -22,7 +22,7 @@ jobs:
 
     # Step 2: Set up Go environment
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ matrix.go-version }} # Use matrix Go version
         cache: true
