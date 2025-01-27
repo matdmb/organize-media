@@ -15,10 +15,8 @@ coverage:
       default:
         target: auto
         threshold: 5  # Allow up to a 5% drop in patch coverage
-        informative: true
 
 flags:
-  - unittests                   # Flag the coverage upload with "unittests"
-
-yaml:
-  branch: main                  # Apply this configuration to the "main" branch only
+  unittests:
+    paths:
+      - ./...  # Matches all files for simplicity
