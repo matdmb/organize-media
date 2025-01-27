@@ -52,5 +52,5 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.out
         slug: ${{ github.repository }}
-        flags: unittests
+        flags: unittests-go-${{ matrix.go-version }}
         fail_ci_if_error: true
