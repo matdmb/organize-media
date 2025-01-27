@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Update Go modules dependencies
+  - package-ecosystem: "gomod"
+    directory: "/"                  # Root directory of the repository
+    schedule:
+      interval: "weekly"            # Check for updates weekly
+      day: "thursday"               # Run on Thursdays
+      time: "07:00"                 # At 7:00 AM UTC
+    open-pull-requests-limit: 5     # Limit the number of open PRs
+
+  # Update GitHub Actions workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"                  # Root directory of the repository
+    schedule:
+      interval: "weekly"            # Check for updates weekly
+      day: "thursday"               # Run on Thursdays
+      time: "07:00"                 # At 7:00 AM UTC
+    open-pull-requests-limit: 3
+
+  # Update Go versions in workflows (indirectly via github-actions)
+  - package-ecosystem: "github-actions"
+    directory: "/"                  # Scan workflows for Go runtime updates
+    schedule:
+      interval: "weekly"            # Check for updates weekly
+      day: "thursday"               # Run on Thursdays
+      time: "07:00"                 # At 7:00 AM UTC
+    open-pull-requests-limit: 1
