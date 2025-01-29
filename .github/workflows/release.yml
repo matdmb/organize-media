@@ -1,0 +1,96 @@
+name: Build and Release Organize Media
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger only when a tag starting with 'v' is pushed (e.g., v1.0.0)
+
+jobs:
+  build:
+    name: Build Binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            ext: ""
+            output_name: "organize-media"
+            artifact_name: "organize-media-linux"
+          - os: macos-latest
+            ext: ""
+            output_name: "organize-media"
+            artifact_name: "organize-media-mac"
+          - os: windows-latest
+            ext: ".exe"
+            output_name: "organizemedia.exe"
+            artifact_name: "organize-media-windows"
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Go
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.x'
+
+      # Step 3: Build the binary
+      - name: Build Binary
+        run: |
+          mkdir -p dist
+          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || matrix.os == 'macos-latest' && 'darwin' || 'windows' }}
+          GOARCH=amd64
+          go build -o dist/${{ matrix.output_name }} main.go
+
+      # Step 4: Zip the binary with versioned zip name
+      - name: Zip Binary
+        run: |
+          cd dist
+          zip -r ${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}
+
+      # Step 5: Upload the zip as an artifact with a simple name pattern
+      - name: Upload Zip Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-zips
+          path: dist/*.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Download all zip files from the previous job
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-zips
+          path: zips
+
+      # Step 3: Create a GitHub release
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      # Step 4: Dynamically upload each zip file
+      - name: Upload Release Assets
+        run: |
+          for file in zips/*.zip; do
+            echo "Uploading $file"
+            gh release upload ${{ github.ref_name }} "$file" --clobber
+          done
