@@ -64,9 +64,8 @@ jobs:
       - name: Zip Binary on Linux/macOS
         if: matrix.os != 'windows-latest'
         run: |
-          mkdir -p ../dist-zipped
-          cd dist
-          zip -r ../dist-zipped/${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}
+          mkdir -p dist-zipped
+          zip -r dist-zipped/${{ matrix.artifact_name }}-${{ github.ref_name }}.zip dist/${{ matrix.output_name }}
 
       # Step 7: Upload the zip as an artifact
       - name: Upload Zip Artifact
