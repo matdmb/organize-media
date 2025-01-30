@@ -52,18 +52,27 @@ jobs:
           mkdir -p dist
           GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o dist/${{ matrix.output_name }} main.go
 
-      # Step 5: Zip the binary with versioned zip name
-      - name: Zip Binary
+      # Step 5: Zip the binary on Windows
+      - name: Zip Binary on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir dist-zipped
+          Compress-Archive -Path dist\${{ matrix.output_name }} -DestinationPath dist-zipped\${{ matrix.artifact_name }}-${{ github.ref_name }}.zip
+        shell: pwsh
+
+      # Step 6: Zip the binary on Linux/macOS
+      - name: Zip Binary on Linux/macOS
+        if: matrix.os != 'windows-latest'
         run: |
           cd dist
-          zip -r ${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}
+          zip -r ../dist-zipped/${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}
 
-      # Step 6: Upload the zip as an artifact with a simple name pattern
+      # Step 7: Upload the zip as an artifact
       - name: Upload Zip Artifact
         uses: actions/upload-artifact@v3
         with:
           name: release-zips
-          path: dist/*.zip
+          path: dist-zipped/*.zip
 
   release:
     name: Create Release
