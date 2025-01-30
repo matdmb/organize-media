@@ -37,24 +37,28 @@ jobs:
         with:
           go-version: '1.x'
 
-      # Step 3: Build the binary (with Windows-specific handling)
-      - name: Build Binary
+      # Step 3: Build the binary on Windows
+      - name: Build Binary on Windows
+        if: matrix.os == 'windows-latest'
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mkdir dist
-            $env:GOOS="windows"; $env:GOARCH="amd64"; go build -o dist/${{ matrix.output_name }} main.go
-          else
-            mkdir -p dist
-            GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o dist/${{ matrix.output_name }} main.go
-          fi
-          
-      # Step 4: Zip the binary with versioned zip name
+          mkdir dist
+          $env:GOOS="windows"; $env:GOARCH="amd64"; go build -o dist/${{ matrix.output_name }} main.go
+        shell: pwsh
+
+      # Step 4: Build the binary on Linux/macOS
+      - name: Build Binary on Linux/macOS
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p dist
+          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o dist/${{ matrix.output_name }} main.go
+
+      # Step 5: Zip the binary with versioned zip name
       - name: Zip Binary
         run: |
           cd dist
           zip -r ${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}
 
-      # Step 5: Upload the zip as an artifact with a simple name pattern
+      # Step 6: Upload the zip as an artifact with a simple name pattern
       - name: Upload Zip Artifact
         uses: actions/upload-artifact@v3
         with:
