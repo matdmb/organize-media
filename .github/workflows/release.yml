@@ -37,14 +37,17 @@ jobs:
         with:
           go-version: '1.x'
 
-      # Step 3: Build the binary
+      # Step 3: Build the binary (with Windows-specific handling)
       - name: Build Binary
         run: |
-          mkdir -p dist
-          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || matrix.os == 'macos-latest' && 'darwin' || 'windows' }}
-          GOARCH=amd64
-          go build -o dist/${{ matrix.output_name }} main.go
-
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            mkdir dist
+            $env:GOOS="windows"; $env:GOARCH="amd64"; go build -o dist/${{ matrix.output_name }} main.go
+          else
+            mkdir -p dist
+            GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o dist/${{ matrix.output_name }} main.go
+          fi
+          
       # Step 4: Zip the binary with versioned zip name
       - name: Zip Binary
         run: |
