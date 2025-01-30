@@ -73,7 +73,7 @@ jobs:
       - name: Upload Zip Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-zips
+          name: release-zips-${{ matrix.os }}-${{ github.run_number }}
           path: dist-zipped/*.zip
 
   release:
@@ -90,7 +90,6 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: release-zips
           path: zips
 
       # Step 3: Create a GitHub release
