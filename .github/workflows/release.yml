@@ -26,7 +26,7 @@ jobs:
             artifact_name: "organize-media-mac"
           - os: windows-latest
             ext: ".exe"
-            output_name: "organizemedia.exe"
+            output_name: "organize-media.exe"
             artifact_name: "organize-media-windows"
 
     steps:
@@ -52,8 +52,7 @@ jobs:
       - name: Build Binary on Linux/macOS
         if: matrix.os != 'windows-latest'
         run: |
-          mkdir -p dist
-          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o dist/${{ matrix.output_name }} main.go
+          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o ./${{ matrix.output_name }} main.go
 
       # Step 5: Zip the binary on Windows
       - name: Zip Binary on Windows
@@ -68,7 +67,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           mkdir -p dist-zipped
-          zip -r dist-zipped/${{ matrix.artifact_name }}-${{ github.ref_name }}.zip dist/${{ matrix.output_name }}
+          zip -r dist-zipped/${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ./${{ matrix.output_name }}
 
       # Step 7: Upload the zip as an artifact
       - name: Upload Zip Artifact
