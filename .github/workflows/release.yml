@@ -46,7 +46,7 @@ jobs:
             zip_name: "organize-media-mac"
           - os: windows-latest
             ext: ".exe"
-            output_name: "organize-media.exe"
+            output_name: "organize-media"
             artifact_name: "organize-media-windows"
             zip_name: "organize-media-windows"
 
@@ -64,7 +64,12 @@ jobs:
 
       - name: Create zip archive
         shell: bash
-        run: zip ${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}${{ matrix.ext }}
+        run: |
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            powershell Compress-Archive -Path ${{ matrix.output_name }}${{ matrix.ext }} -DestinationPath ${{ matrix.artifact_name }}-${{ github.ref_name }}.zip
+          else
+            zip ${{ matrix.artifact_name }}-${{ github.ref_name }}.zip ${{ matrix.output_name }}${{ matrix.ext }}
+          fi
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
