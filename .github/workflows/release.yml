@@ -73,8 +73,10 @@ jobs:
       - name: Upload Zip Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-zips-${{ matrix.os }}-${{ github.run_number }}
+          name: release-zips
           path: dist-zipped/*.zip
+          if-no-files-found: warn  # Ensure it doesn’t fail if no files are found
+          overwrite: true  # Enables overwriting the existing artifact
 
   release:
     name: Create Release
@@ -90,6 +92,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
+          name: release-zips
           path: zips
 
       # Step 3: Create a GitHub release
