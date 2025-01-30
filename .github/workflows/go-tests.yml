@@ -47,11 +47,14 @@ jobs:
 
     # Step 6: Run tests with coverage
     - name: Run tests and generate coverage
-      run: go test -v ./... -coverprofile=coverage.out
+      run: |
+        go test -race -v ./... -coverprofile=coverage.out
+        go tool cover -func=coverage.out
 
     # Step 7: Upload coverage to Codecov
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
+      if: success()
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.out
