@@ -1,4 +1,4 @@
-module github.com/matdmb/organize_pictures
+module github.com/matdmb/organize-media
 
 go 1.19
 
