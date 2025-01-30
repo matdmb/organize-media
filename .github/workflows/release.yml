@@ -25,6 +25,10 @@ jobs:
           release_name: ${{ github.ref }}
           draft: false
           prerelease: false
+        continue-on-error: true
+
+      - name: Set Release URL
+        run: echo "upload_url=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_OUTPUT
 
   build:
     name: Build Binaries
