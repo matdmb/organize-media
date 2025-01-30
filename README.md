@@ -1,5 +1,5 @@
 
-# Organize Pictures: A Tool to Manage and Optimize Your Photo Library
+# Organize Media: A Tool to Manage and Optimize Your Photo Library
 
 A utility to organize pictures by their taken date. RAW files are moved to designated folders, while JPG files can be optionally compressed before being relocated.
 
@@ -15,7 +15,7 @@ _Current test coverage as tracked by Codecov._
 - Lightweight and simple to use.
 
 ## Prerequisites
-- [Go](https://go.dev/) version `1.20` or later.
+- [Go](https://go.dev/) version `1.19` or later.
 - `make` utility (for running commands).
 
 ## Installation
@@ -34,7 +34,7 @@ make build
 ## How to Run the Application
 
 ```bash
-./bin/organize-pictures -source <source-folder> -dest <destination-folder> [-compression <compression_level>]
+./bin/organize-media -source <source-folder> -dest <destination-folder> [-compression <compression_level>]
 ```
 
 - `-source`: Path to the folder containing your pictures.

@@ -1,5 +1,5 @@
 # Project name and paths
-APP_NAME := organize-pictures
+APP_NAME := organize-media
 BIN_DIR := bin
 SRC_DIR := .
 
@@ -11,7 +11,7 @@ build:
 # Cleaning
 clean:
 	@rm -rf $(BIN_DIR)                         # Delete the bin directory
-	@rm -f coverage.out						   # Delete the coverage file
+	@rm -f coverage.out                        # Delete the coverage file
 
 # Command to run the application
 run: build
