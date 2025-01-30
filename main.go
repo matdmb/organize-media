@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/matdmb/organize_pictures/internal"
+	"github.com/matdmb/organize-media/internal"
 )
 
 type Params struct {

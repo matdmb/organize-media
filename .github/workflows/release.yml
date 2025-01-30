@@ -1,4 +1,4 @@
-name: Build and Release Organize Media
+name: Build and Release
 
 on:
   push:

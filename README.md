@@ -21,8 +21,8 @@ _Current test coverage as tracked by Codecov._
 ## Installation
 
 ```bash
-git clone git@github.com:matdmb/organize_pictures.git
-cd organize_pictures
+git clone git@github.com:matdmb/organize-media.git
+cd organize-media
 ```
 
 ## How to Build the Application
