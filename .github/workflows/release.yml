@@ -3,10 +3,10 @@ name: Build and Release Organize Media
 on:
   push:
     tags:
-      - 'v*' # Trigger only when a tag starting with 'v' is pushed (e.g., v1.0.0)
+      - 'v*'
 
 permissions:
-  contents: write  # Allows creating releases and uploading artifacts
+  contents: write
 
 jobs:
   build:
@@ -30,88 +30,39 @@ jobs:
             artifact_name: "organize-media-windows"
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Go
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.x'
+          go-version: '1.21'
 
-      # Step 3: Build the binary on Windows
-      - name: Build Binary on Windows
-        if: matrix.os == 'windows-latest'
+      - name: Build binary
+        run: go build -o ${{ matrix.output_name }}${{ matrix.ext }}
+
+      - name: Create zip archive
         run: |
-          mkdir dist
-          $env:GOOS="windows"; $env:GOARCH="amd64"; go build -o dist/${{ matrix.output_name }} main.go
-        shell: pwsh
+          zip ${{ matrix.artifact_name }}.zip ${{ matrix.output_name }}${{ matrix.ext }}
 
-      # Step 4: Build the binary on Linux/macOS
-      - name: Build Binary on Linux/macOS
-        if: matrix.os != 'windows-latest'
-        run: |
-          mkdir -p dist
-          GOOS=${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }} GOARCH=amd64 go build -o dist/${{ matrix.output_name }} main.go
-
-      # Step 5: Zip the binary on Windows
-      - name: Zip Binary on Windows
-        if: matrix.os == 'windows-latest'
-        run: |
-          mkdir dist-zipped
-          Compress-Archive -Path dist\${{ matrix.output_name }} -DestinationPath dist-zipped\${{ matrix.artifact_name }}-${{ github.ref_name }}.zip
-        shell: pwsh
-
-      # Step 6: Zip the binary on Linux/macOS
-      - name: Zip Binary on Linux/macOS
-        if: matrix.os != 'windows-latest'
-        run: |
-          mkdir -p dist-zipped
-          zip -r dist-zipped/${{ matrix.artifact_name }}-${{ github.ref_name }}.zip dist/${{ matrix.output_name }}
-
-      # Step 7: Upload the zip as an artifact
-      - name: Upload Zip Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-zips
-          path: dist-zipped/*.zip
-
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      # Step 1: Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Step 2: Download all zip files from the previous job
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-zips
-          path: zips
-
-      # Step 3: Create a GitHub release
-      - name: Create GitHub Release
+      - name: Create Release
+        if: matrix.os == 'ubuntu-latest'
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
 
-      # Step 4: Dynamically upload each zip file
-      - name: Upload Release Assets
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GitHub CLI uses the correct token
-        run: |
-          for file in zips/*.zip; do
-            echo "Uploading $file"
-            gh release upload ${{ github.ref_name }} "$file" --clobber
-          done
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ matrix.artifact_name }}.zip
+          asset_name: ${{ matrix.artifact_name }}.zip
+          asset_content_type: application/zip
