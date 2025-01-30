@@ -28,7 +28,7 @@ jobs:
         continue-on-error: true
 
       - name: Set Release URL
-        run: echo "upload_url=${{ steps.create_release.outputs.upload_url }}" >> $GITHUB_OUTPUT
+        run: echo "upload_url=${{ steps.create_release.outputs.upload_url }}" >> "$GITHUB_ENV"
 
   build:
     name: Build Binaries
