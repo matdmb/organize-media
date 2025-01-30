@@ -108,6 +108,8 @@ jobs:
 
       # Step 4: Dynamically upload each zip file
       - name: Upload Release Assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure GitHub CLI uses the correct token
         run: |
           for file in zips/*.zip; do
             echo "Uploading $file"
