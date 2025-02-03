@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -77,9 +78,9 @@ func CountFiles(dir string) (int, error) {
 	return count, err
 }
 
-// MoveFiles moves image files to a destination directory, creating year/month-day subdirectories.
+// ProcessFiles moves image files to a destination directory, creating year/month-day subdirectories.
 // If a compression level is specified (0-100), JPG files are compressed before being moved.
-func MoveFiles(files []ImageFile, dest string, compression int) (ProcessingSummary, error) {
+func ProcessFiles(files []ImageFile, dest string, compression int, deleteFile bool) (ProcessingSummary, error) {
 	var summary ProcessingSummary
 
 	for _, file := range files {
@@ -110,30 +111,55 @@ func MoveFiles(files []ImageFile, dest string, compression int) (ProcessingSumma
 
 		// Compress and move JPG files if compression is enabled
 		if strings.ToLower(filepath.Ext(file.Path)) == ".jpg" && compression >= 0 {
-			if err := compressAndMoveJPG(file.Path, newPath, compression); err != nil {
+			if err := compressImage(file.Path, newPath, compression); err != nil {
 				return summary, err
 			}
-
-			// Delete the original file after successful compression
-			if err := os.Remove(file.Path); err != nil {
-				return summary, fmt.Errorf("failed to delete original file %s: %v", file.Path, err)
+			if deleteFile {
+				// Delete the original file after successful compression
+				if err := os.Remove(file.Path); err != nil {
+					return summary, fmt.Errorf("failed to delete original file %s: %v", file.Path, err)
+				}
+				fmt.Printf("Compressed and moved file: %s\n", newPath)
+			} else {
+				// Original file is kept
+				fmt.Printf("Compressed file: %s\n", newPath)
 			}
-			fmt.Printf("Compressed and moved file: %s\n", newPath)
 			summary.Compressed++
+
 		} else {
-			// Move the file without compression
-			if err := os.Rename(file.Path, newPath); err != nil {
-				return summary, fmt.Errorf("failed to move file %s to %s: %w", file.Path, newPath, err)
+			if deleteFile {
+				// Move the file without compression
+				if err := os.Rename(file.Path, newPath); err != nil {
+					return summary, fmt.Errorf("failed to move file %s to %s: %w", file.Path, newPath, err)
+				}
+				fmt.Printf("Moved file: %s\n", newPath)
+			} else {
+				// Copy the file without compression
+				srcFile, err := os.Open(file.Path)
+				if err != nil {
+					return summary, fmt.Errorf("failed to open source file %s: %w", file.Path, err)
+				}
+				defer srcFile.Close()
+
+				destFile, err := os.Create(newPath)
+				if err != nil {
+					return summary, fmt.Errorf("failed to create destination file %s: %w", newPath, err)
+				}
+				defer destFile.Close()
+
+				if _, err := io.Copy(destFile, srcFile); err != nil {
+					return summary, fmt.Errorf("failed to copy file from %s to %s: %w", file.Path, newPath, err)
+				}
+				fmt.Printf("Copied file: %s\n", newPath)
 			}
-			fmt.Printf("Moved file: %s\n", newPath)
 			summary.Moved++
 		}
 	}
 	return summary, nil
 }
 
-// compressAndMoveJPG compresses a JPG image to the specified quality level and moves it to the destination.
-func compressAndMoveJPG(src, dest string, quality int) error {
+// compressImage compresses a JPG image to the specified quality level and moves it to the destination.
+func compressImage(src, dest string, quality int) error {
 	// Open the source image
 	srcFile, err := os.Open(src)
 	if err != nil {
