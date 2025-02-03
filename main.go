@@ -23,7 +23,7 @@ func main() {
 	// Define flags
 	source := flag.String("source", "", "Path to the source directory containing pictures")
 	dest := flag.String("dest", "", "Path to the destination directory for organized pictures")
-	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optionalle)")
+	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optional)")
 	delete := flag.Bool("delete", false, "Delete source files after processing")
 
 	// Parse the flags

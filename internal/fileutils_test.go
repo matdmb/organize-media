@@ -407,3 +407,56 @@ func TestListFilesHandlesExifErrors(t *testing.T) {
 		t.Errorf("Valid file with EXIF data was not included")
 	}
 }
+func TestCopyFile(t *testing.T) {
+	// Create temp directories
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Test successful copy
+	t.Run("successful copy", func(t *testing.T) {
+		srcPath := filepath.Join(srcDir, "test.txt")
+		destPath := filepath.Join(destDir, "test.txt")
+		content := []byte("test content")
+
+		// Create source file
+		if err := os.WriteFile(srcPath, content, 0644); err != nil {
+			t.Fatalf("Failed to create source file: %v", err)
+		}
+
+		// Copy file
+		err := copyFile(srcPath, destPath)
+		if err != nil {
+			t.Fatalf("copyFile failed: %v", err)
+		}
+
+		// Verify content
+		destContent, err := os.ReadFile(destPath)
+		if err != nil {
+			t.Fatalf("Failed to read destination file: %v", err)
+		}
+		if string(destContent) != string(content) {
+			t.Errorf("Destination content does not match source. Got %s, want %s", destContent, content)
+		}
+	})
+
+	// Test non-existent source file
+	t.Run("non-existent source", func(t *testing.T) {
+		err := copyFile(filepath.Join(srcDir, "nonexistent.txt"), filepath.Join(destDir, "test.txt"))
+		if err == nil {
+			t.Error("Expected error for non-existent source file, got nil")
+		}
+	})
+
+	// Test invalid destination path
+	t.Run("invalid destination", func(t *testing.T) {
+		srcPath := filepath.Join(srcDir, "test.txt")
+		if err := os.WriteFile(srcPath, []byte("test"), 0644); err != nil {
+			t.Fatalf("Failed to create source file: %v", err)
+		}
+
+		err := copyFile(srcPath, filepath.Join(destDir, "invalid/path/test.txt"))
+		if err == nil {
+			t.Error("Expected error for invalid destination path, got nil")
+		}
+	})
+}
