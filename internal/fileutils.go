@@ -23,7 +23,7 @@ type ProcessingSummary struct {
 	Skipped    int
 }
 
-var allowedExtensions = []string{".jpg", ".nef"}
+var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw"}
 
 // ListFiles traverses a directory and returns a slice of ImageFile structs for supported image formats.
 func ListFiles(directory string) ([]ImageFile, error) {
