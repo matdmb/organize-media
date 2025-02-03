@@ -16,13 +16,15 @@ type Params struct {
 	Destination   string
 	Compression   int
 	SkipUserInput bool // New flag to bypass user input
+	DeleteSource  bool // New flag to delete source files after processing
 }
 
 func main() {
 	// Define flags
 	source := flag.String("source", "", "Path to the source directory containing pictures")
 	dest := flag.String("dest", "", "Path to the destination directory for organized pictures")
-	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optional)")
+	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optionalle)")
+	delete := flag.Bool("delete", false, "Delete source files after processing")
 
 	// Parse the flags
 	flag.Parse()
@@ -36,9 +38,10 @@ func main() {
 
 	// Initialize Params struct
 	params := &Params{
-		Source:      *source,
-		Destination: *dest,
-		Compression: *compression,
+		Source:       *source,
+		Destination:  *dest,
+		Compression:  *compression,
+		DeleteSource: *delete,
 	}
 
 	// Run the main logic
@@ -71,6 +74,8 @@ func run(params *Params) error {
 	} else {
 		log.Printf("Compression: not applied")
 	}
+
+	log.Printf("Delete source files: %t", params.DeleteSource)
 
 	// Count files in the source directory
 	totalFiles, err := internal.CountFiles(params.Source)
@@ -114,7 +119,7 @@ func run(params *Params) error {
 	defer os.Remove(testFile)
 
 	// Move and optionally compress files
-	summary, err := internal.MoveFiles(files, params.Destination, params.Compression)
+	summary, err := internal.ProcessFiles(files, params.Destination, params.Compression, params.DeleteSource)
 	if err != nil {
 		return fmt.Errorf("error moving files: %v", err)
 	}
@@ -122,8 +127,8 @@ func run(params *Params) error {
 	// Print processing summary
 	fmt.Printf("\nProcessing Summary:\n")
 	fmt.Printf("%d files have been successfully processed.\n", summary.Moved+summary.Compressed)
-	fmt.Printf("Files moved without compression: %d\n", summary.Moved)
-	fmt.Printf("Files compressed and moved: %d\n", summary.Compressed)
+	fmt.Printf("Files processed without compression: %d\n", summary.Moved)
+	fmt.Printf("Files processed and compressed: %d\n", summary.Compressed)
 	fmt.Printf("Files skipped: %d\n", summary.Skipped)
 
 	return nil

@@ -49,7 +49,7 @@ func TestCountFiles(t *testing.T) {
 	}
 }
 
-func TestCompressAndMoveJPG(t *testing.T) {
+func TestCompressImage(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "test.jpg")
 	dest := filepath.Join(t.TempDir(), "compressed_test.jpg")
 
@@ -59,9 +59,9 @@ func TestCompressAndMoveJPG(t *testing.T) {
 	jpeg.Encode(file, img, nil)
 	file.Close()
 
-	err := compressAndMoveJPG(src, dest, 50)
+	err := compressImage(src, dest, 50)
 	if err != nil {
-		t.Fatalf("compressAndMoveJPG returned an error: %v", err)
+		t.Fatalf("compressImage returned an error: %v", err)
 	}
 
 	// Check if destination file exists
@@ -70,7 +70,7 @@ func TestCompressAndMoveJPG(t *testing.T) {
 	}
 }
 
-func TestMoveFiles(t *testing.T) {
+func TestProcessFiles(t *testing.T) {
 	// Step 1: Create temporary source and destination directories
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
@@ -95,10 +95,10 @@ func TestMoveFiles(t *testing.T) {
 		}
 	}
 
-	// Step 3: Call the MoveFiles function
-	summary, err := MoveFiles(mockFiles, destDir, 80) // Compression level set to 80
+	// Step 3: Call the ProcessFiles function
+	summary, err := ProcessFiles(mockFiles, destDir, 80, true) // Compression level set to 80
 	if err != nil {
-		t.Fatalf("MoveFiles failed: %v", err)
+		t.Fatalf("ProcessFiles failed: %v", err)
 	}
 
 	// Step 4: Verify the results
@@ -120,7 +120,7 @@ func TestMoveFiles(t *testing.T) {
 	}
 }
 
-func TestMoveFilesWithoutCompression(t *testing.T) {
+func TestProcessFilesWithoutCompression(t *testing.T) {
 	// Step 1: Create temporary source and destination directories
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
@@ -145,10 +145,10 @@ func TestMoveFilesWithoutCompression(t *testing.T) {
 		}
 	}
 
-	// Step 3: Call the MoveFiles function with compression set to -1 (no compression)
-	summary, err := MoveFiles(mockFiles, destDir, -1)
+	// Step 3: Call the ProcessFiles function with compression set to -1 (no compression)
+	summary, err := ProcessFiles(mockFiles, destDir, -1, true)
 	if err != nil {
-		t.Fatalf("MoveFiles failed: %v", err)
+		t.Fatalf("ProcessFiles failed: %v", err)
 	}
 
 	// Step 4: Verify the results
@@ -196,13 +196,13 @@ func createMockJPEG(path string) error {
 	return jpeg.Encode(file, img, nil)
 }
 
-func TestMoveFilesWithNoFiles(t *testing.T) {
+func TestProcessFilesWithNoFiles(t *testing.T) {
 	destDir := t.TempDir()
 
-	// Call MoveFiles with an empty slice
-	summary, err := MoveFiles([]ImageFile{}, destDir, -1)
+	// Call ProcessFiles with an empty slice
+	summary, err := ProcessFiles([]ImageFile{}, destDir, -1, true)
 	if err != nil {
-		t.Fatalf("MoveFiles failed: %v", err)
+		t.Fatalf("ProcessFiles failed: %v", err)
 	}
 
 	// Verify no files were processed
@@ -211,7 +211,7 @@ func TestMoveFilesWithNoFiles(t *testing.T) {
 	}
 }
 
-func TestMoveFilesWithExistingFiles(t *testing.T) {
+func TestProcessFilesWithExistingFiles(t *testing.T) {
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
 
@@ -239,10 +239,10 @@ func TestMoveFilesWithExistingFiles(t *testing.T) {
 		t.Fatalf("Failed to create existing destination file: %v", err)
 	}
 
-	// Call MoveFiles
-	summary, err := MoveFiles([]ImageFile{mockFile}, destDir, -1)
+	// Call ProcessFiles
+	summary, err := ProcessFiles([]ImageFile{mockFile}, destDir, -1, true)
 	if err != nil {
-		t.Fatalf("MoveFiles failed: %v", err)
+		t.Fatalf("ProcessFiles failed: %v", err)
 	}
 
 	// Verify the file was skipped
@@ -251,7 +251,7 @@ func TestMoveFilesWithExistingFiles(t *testing.T) {
 	}
 }
 
-func TestMoveFilesWithSubdirectories(t *testing.T) {
+func TestProcessFilesWithSubdirectories(t *testing.T) {
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
 
@@ -271,10 +271,10 @@ func TestMoveFilesWithSubdirectories(t *testing.T) {
 		t.Fatalf("Failed to create mock JPEG file: %v", err)
 	}
 
-	// Call MoveFiles
-	summary, err := MoveFiles([]ImageFile{mockFile}, destDir, -1)
+	// Call ProcessFiles
+	summary, err := ProcessFiles([]ImageFile{mockFile}, destDir, -1, true)
 	if err != nil {
-		t.Fatalf("MoveFiles failed: %v", err)
+		t.Fatalf("ProcessFiles failed: %v", err)
 	}
 
 	// Verify the file was moved
@@ -283,7 +283,7 @@ func TestMoveFilesWithSubdirectories(t *testing.T) {
 	}
 }
 
-func TestMoveFilesWithCompressionError(t *testing.T) {
+func TestProcessFilesWithCompressionError(t *testing.T) {
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
 
@@ -297,8 +297,8 @@ func TestMoveFilesWithCompressionError(t *testing.T) {
 		t.Fatalf("Failed to create corrupted file: %v", err)
 	}
 
-	// Call MoveFiles
-	_, err := MoveFiles([]ImageFile{mockFile}, destDir, 80)
+	// Call ProcessFiles
+	_, err := ProcessFiles([]ImageFile{mockFile}, destDir, 80, true)
 	if err == nil {
 		t.Fatalf("Expected an error but got none")
 	}
@@ -329,10 +329,10 @@ func TestFileRemovalAfterProcessing(t *testing.T) {
 		}
 	}
 
-	// Step 3: Call MoveFiles with compression enabled
-	_, err := MoveFiles(mockFiles, destDir, 80)
+	// Step 3: Call ProcessFiles with compression enabled
+	_, err := ProcessFiles(mockFiles, destDir, 80, true)
 	if err != nil {
-		t.Fatalf("MoveFiles failed: %v", err)
+		t.Fatalf("ProcessFiles failed: %v", err)
 	}
 
 	// Step 4: Verify the files have been removed from the source directory
