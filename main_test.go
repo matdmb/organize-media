@@ -175,6 +175,49 @@ func TestMainFunction(t *testing.T) {
 	main()
 }
 
+func TestFormatSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		size     int64
+		expected string
+	}{
+		{
+			name:     "Bytes",
+			size:     500,
+			expected: "500 bytes",
+		},
+		{
+			name:     "Kilobytes",
+			size:     1500,
+			expected: "1.46 KB",
+		},
+		{
+			name:     "Megabytes",
+			size:     1500000,
+			expected: "1.43 MB",
+		},
+		{
+			name:     "Gigabytes",
+			size:     1500000000,
+			expected: "1.40 GB",
+		},
+		{
+			name:     "Zero",
+			size:     0,
+			expected: "0 bytes",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatSize(tt.size)
+			if result != tt.expected {
+				t.Errorf("formatSize(%d) = %s; want %s", tt.size, result, tt.expected)
+			}
+		})
+	}
+}
+
 func mockInput(input string) func() {
 	oldStdin := os.Stdin
 	r, w, _ := os.Pipe()

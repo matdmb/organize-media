@@ -78,7 +78,7 @@ func run(params *Params) error {
 	log.Printf("Delete source files: %t", params.DeleteSource)
 
 	// Count files in the source directory
-	totalFiles, err := internal.CountFiles(params.Source)
+	totalFiles, size, err := internal.CountFiles(params.Source)
 	if err != nil {
 		return fmt.Errorf("error counting files: %v", err)
 	}
@@ -87,7 +87,7 @@ func run(params *Params) error {
 		return fmt.Errorf("no files to process in source directory")
 	}
 
-	fmt.Printf("Total files to process: %d\n", totalFiles)
+	fmt.Printf("Number of files to process: %d [%s]\n", totalFiles, formatSize(size))
 
 	if !params.SkipUserInput {
 		// Ask for user confirmation
@@ -132,4 +132,24 @@ func run(params *Params) error {
 	fmt.Printf("Files skipped: %d\n", summary.Skipped)
 
 	return nil
+}
+
+// formatSize formats the size in bytes to a human-readable string in GB, MB, or KB.
+func formatSize(size int64) string {
+	const (
+		KB = 1 << 10
+		MB = 1 << 20
+		GB = 1 << 30
+	)
+
+	switch {
+	case size >= GB:
+		return fmt.Sprintf("%.2f GB", float64(size)/GB)
+	case size >= MB:
+		return fmt.Sprintf("%.2f MB", float64(size)/MB)
+	case size >= KB:
+		return fmt.Sprintf("%.2f KB", float64(size)/KB)
+	default:
+		return fmt.Sprintf("%d bytes", size)
+	}
 }
