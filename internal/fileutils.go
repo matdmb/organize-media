@@ -60,8 +60,9 @@ func isAllowedExtension(ext string) bool {
 }
 
 // CountFiles counts the number of files with allowed extensions in a directory.
-func CountFiles(dir string) (int, error) {
+func CountFiles(dir string) (int, int64, error) {
 	var count int
+	var totalSize int64
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -71,11 +72,12 @@ func CountFiles(dir string) (int, error) {
 		// Increment count for files with allowed extensions
 		if !info.IsDir() && isAllowedExtension(filepath.Ext(info.Name())) {
 			count++
+			totalSize += info.Size()
 		}
 		return nil
 	})
 
-	return count, err
+	return count, totalSize, err
 }
 
 // ProcessFiles moves or copy image files to a destination directory, creating year/month-day subdirectories.
