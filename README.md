@@ -34,13 +34,13 @@ make build
 ## How to Run the Application
 
 ```bash
-./bin/organize-media --source <source-folder> --dest <destination-folder> [--compression <compression-level>] [--delete <true|false>]
+./bin/organize-media --source <source-folder> --dest <destination-folder> [--compression <compression-level>] [--delete]
 ```
 
-- `-source`: Path to the folder containing your pictures.
-- `-dest`: Path to the folder where organized pictures will be stored.
-- `-compression`: (Optional) Compression level for JPG files (0-100). Defaults to -1 (no compression applied).
-- `-delete`: (Optional) Delete source files after processing
+- `--source`: Path to the folder containing your pictures.
+- `--dest`: Path to the folder where organized pictures will be stored.
+- `--compression`: (Optional) Compression level for JPG files (0-100). Defaults to -1 (no compression applied).
+- `--delete`: (Optional) Delete source files after processing
 
 Alternatively, use the `make run` command if source and destination folders are set in the `Makefile`.
 

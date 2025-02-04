@@ -39,7 +39,7 @@ func TestCountFiles(t *testing.T) {
 	os.WriteFile(allowedFile, []byte{}, 0644)
 	os.WriteFile(disallowedFile, []byte{}, 0644)
 
-	count, err := CountFiles(tempDir)
+	count, _, err := CountFiles(tempDir)
 	if err != nil {
 		t.Fatalf("CountFiles returned an error: %v", err)
 	}
