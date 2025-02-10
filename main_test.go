@@ -105,7 +105,7 @@ func TestRun(t *testing.T) {
 				}
 
 				// Make the destination directory read-only
-				if err := os.Chmod(destDir, 0444); err != nil {
+				if err := os.Chmod(destDir, 0555); err != nil {
 					t.Fatalf("Failed to make destination directory read-only: %v", err)
 				}
 
@@ -225,4 +225,69 @@ func mockInput(input string) func() {
 	w.Close()
 	os.Stdin = r
 	return func() { os.Stdin = oldStdin }
+}
+
+func TestSetupLogger(t *testing.T) {
+	// Clean up after tests
+	defer os.RemoveAll("./logs")
+
+	tests := []struct {
+		name      string
+		enableLog bool
+		wantErr   bool
+	}{
+		{
+			name:      "logging disabled",
+			enableLog: false,
+			wantErr:   false,
+		},
+		{
+			name:      "logging enabled",
+			enableLog: true,
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			writer, err := setupLogger(tt.enableLog)
+
+			// Check error cases
+			if (err != nil) != tt.wantErr {
+				t.Errorf("setupLogger() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// Check writer is not nil
+			if writer == nil {
+				t.Error("setupLogger() returned nil writer")
+				return
+			}
+
+			if tt.enableLog {
+				// Verify logs directory was created
+				if _, err := os.Stat("./logs"); os.IsNotExist(err) {
+					t.Error("logs directory was not created")
+				}
+
+				// Verify at least one log file exists
+				files, err := os.ReadDir("./logs")
+				if err != nil {
+					t.Errorf("failed to read logs directory: %v", err)
+				}
+				if len(files) == 0 {
+					t.Error("no log files were created")
+				}
+
+				// Verify log file is writable
+				logFile := files[0]
+				logPath := filepath.Join("./logs", logFile.Name())
+				f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND, 0666)
+				if err != nil {
+					t.Errorf("log file is not writable: %v", err)
+				}
+				f.Close()
+			}
+		})
+	}
 }
