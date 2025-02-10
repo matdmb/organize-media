@@ -77,6 +77,8 @@ func CountFiles(dir string) (int, int64, error) {
 		return nil
 	})
 
+	log.Printf("CountFiles: %d files found in %s\n", count, dir)
+
 	return count, totalSize, err
 }
 
@@ -84,6 +86,8 @@ func CountFiles(dir string) (int, int64, error) {
 // If a compression level is specified (0-100), JPG files are compressed before being processed.
 func ProcessFiles(files []ImageFile, dest string, compression int, deleteFile bool) (ProcessingSummary, error) {
 	var summary ProcessingSummary
+
+	log.Printf("Starting processing files...")
 
 	for _, file := range files {
 		fmt.Printf("Processing file: %s (Extension: %s)\n", file.Path, filepath.Ext(file.Path))
@@ -96,7 +100,7 @@ func ProcessFiles(files []ImageFile, dest string, compression int, deleteFile bo
 		if exists, err := fileExists(targetPath); err != nil {
 			return summary, err
 		} else if exists {
-			fmt.Printf("File already exists: %s, skipping...\n", targetPath)
+			log.Printf("[SKIPPED] File already exists: %s, skipping...", targetPath)
 			summary.Skipped++
 			continue
 		}
@@ -148,9 +152,9 @@ func handleJPGFile(srcPath, targetPath string, compression int, deleteFile bool,
 		if err := os.Remove(srcPath); err != nil {
 			return fmt.Errorf("failed to delete original file %s: %v", srcPath, err)
 		}
-		fmt.Printf("Compressed and moved file: %s\n", targetPath)
+		log.Printf("[COMPRESSED] Compressed and moved file to: %s", targetPath)
 	} else {
-		fmt.Printf("Compressed file: %s\n", targetPath)
+		log.Printf("[COMPRESSED] Compressed fileto : %s", targetPath)
 	}
 	summary.Compressed++
 	return nil
@@ -162,12 +166,12 @@ func handleNonJPGFile(srcPath, targetPath string, deleteFile bool, summary *Proc
 		if err := os.Rename(srcPath, targetPath); err != nil {
 			return fmt.Errorf("failed to move file %s to %s: %w", srcPath, targetPath, err)
 		}
-		fmt.Printf("Moved file: %s\n", targetPath)
+		log.Printf("[MOVED] Moved file to: %s", targetPath)
 	} else {
 		if err := copyFile(srcPath, targetPath); err != nil {
 			return err
 		}
-		fmt.Printf("Copied file: %s\n", targetPath)
+		log.Printf("[COPIED] Copied file to: %s", targetPath)
 	}
 	summary.Moved++
 	return nil
