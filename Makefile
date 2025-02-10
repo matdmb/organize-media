@@ -3,6 +3,17 @@ APP_NAME := organize-media
 BIN_DIR := bin
 SRC_DIR := .
 
+
+# Benchmark
+benchmark:
+	go test -bench=. -count 1 -run=^# -benchtime=0.3s ./... -v
+
+deps-benchmark-stats:
+	go install golang.org/x/perf/cmd/benchstat
+
+benchmark-stats:
+	go test -bench=. -count 6 -run=^# -benchtime=0.3s ./... | benchstat -
+
 # Compilation
 build:
 	@mkdir -p $(BIN_DIR)                       # Create the bin directory
