@@ -3,10 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/matdmb/organize-media/internal"
 )
@@ -17,6 +19,7 @@ type Params struct {
 	Compression   int
 	SkipUserInput bool // New flag to bypass user input
 	DeleteSource  bool // New flag to delete source files after processing
+	EnableLog     bool // New flag to enable logging
 }
 
 func main() {
@@ -25,6 +28,7 @@ func main() {
 	dest := flag.String("dest", "", "Path to the destination directory for organized pictures")
 	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optional)")
 	delete := flag.Bool("delete", false, "Delete source files after processing")
+	logFile := flag.Bool("enable-log", false, "Enable logging to a file")
 
 	// Parse the flags
 	flag.Parse()
@@ -42,6 +46,7 @@ func main() {
 		Destination:  *dest,
 		Compression:  *compression,
 		DeleteSource: *delete,
+		EnableLog:    *logFile,
 	}
 
 	// Run the main logic
@@ -65,6 +70,55 @@ func run(params *Params) error {
 	if params.Compression < -1 || params.Compression > 100 {
 		return fmt.Errorf("compression level must be an integer between 0 and 100")
 	}
+
+	var logOutput io.Writer
+	// Setup logger
+	logOutput, err := setupLogger(params.EnableLog)
+	if err != nil {
+		return err
+	}
+	log.SetOutput(logOutput)
+
+	/*
+
+		if params.EnableLog {
+			// Specify the destination folder for logs
+			destinationFolder := "./logs"
+			if err := os.MkdirAll(destinationFolder, 0755); err != nil {
+				return fmt.Errorf("failed to create destination folder: %v", err)
+			}
+
+			// Generate a log file name using the current date, time, and milliseconds
+			logFileName := time.Now().Format("2006-01-02_15-04-05") + ".log"
+			logFilePath := filepath.Join(destinationFolder, logFileName)
+
+			// Create the log file
+			logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+			if err != nil {
+				return fmt.Errorf("failed to open log file: %v", err)
+			}
+
+			// Defer closing the log file
+			defer logFile.Close()
+
+			// Set log output to the file
+			log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+			log.SetOutput(logFile)
+			log.Println("Log initialized at", time.Now().Format(time.RFC1123))
+
+			// Create a multi-writer that writes to both stdout and the log file
+			logOutput = io.MultiWriter(os.Stdout, logFile)
+		} else {
+			// If logging is not enabled, only log to the terminal (stdout)
+			logOutput = os.Stdout
+		}
+
+		// Set the output for the default Go logger
+		log.SetOutput(logOutput)
+	*/
+	// Example log messages
+	log.Println("Application started.")
+	log.Println("This message is logged to both the terminal and the log file if enabled.")
 
 	log.Printf("Source directory: %s", params.Source)
 	log.Printf("Destination directory: %s", params.Destination)
@@ -125,11 +179,12 @@ func run(params *Params) error {
 	}
 
 	// Print processing summary
-	fmt.Printf("\nProcessing Summary:\n")
-	fmt.Printf("%d files have been successfully processed.\n", summary.Moved+summary.Compressed)
-	fmt.Printf("Files processed without compression: %d\n", summary.Moved)
-	fmt.Printf("Files processed and compressed: %d\n", summary.Compressed)
-	fmt.Printf("Files skipped: %d\n", summary.Skipped)
+	log.Printf("Processing Summary:\n")
+	log.Printf("%d files have been successfully processed.\n", summary.Moved+summary.Compressed)
+	log.Printf("Files processed without compression: %d\n", summary.Moved)
+	log.Printf("Files processed and compressed: %d\n", summary.Compressed)
+	log.Printf("Files skipped: %d\n", summary.Skipped)
+	log.Println("Process completed.")
 
 	return nil
 }
@@ -152,4 +207,35 @@ func formatSize(size int64) string {
 	default:
 		return fmt.Sprintf("%d bytes", size)
 	}
+}
+
+func setupLogger(enableLog bool) (io.Writer, error) {
+	if enableLog {
+		// Create logs directory if it doesn't exist
+		destinationFolder := "./logs"
+		if err := os.MkdirAll(destinationFolder, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create logs directory: %v", err)
+		}
+
+		// Create log file with timestamped name
+		logFileName := time.Now().Format("2006-01-02_15-04-05") + ".log"
+		logFilePath := filepath.Join(destinationFolder, logFileName)
+
+		// Open the log file
+		logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open log file: %v", err)
+		}
+
+		// Set log output to the file
+		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+		log.SetOutput(logFile)
+		log.Println("Log initialized at", time.Now().Format(time.RFC1123))
+
+		// Return multi-writer to log to both terminal and log file
+		return io.MultiWriter(os.Stdout, logFile), nil
+	}
+
+	// Default to logging only to the terminal
+	return os.Stdout, nil
 }

@@ -23,9 +23,10 @@ build:
 clean:
 	@rm -rf $(BIN_DIR)                         # Delete the bin directory
 	@rm -f coverage.out                        # Delete the coverage file
+	@rm -rf ./logs                             # Delete the logs directory
 
 # Command to run the application
 run: build
-	./$(BIN_DIR)/$(APP_NAME) --source ../../Pictures/Import/ --dest ../../Pictures/RAW/ --compression 50
+	./$(BIN_DIR)/$(APP_NAME) --source ../../Pictures/Import/ --dest ../../Pictures/RAW/ --compression 50 --enable-log
 
 .PHONY: build clean run
