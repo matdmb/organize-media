@@ -1,7 +1,6 @@
-package main
+package organizemedia
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/matdmb/organize-media/internal"
+	"github.com/matdmb/organize-media/pkg/utils"
 )
 
 type Params struct {
@@ -22,40 +21,7 @@ type Params struct {
 	EnableLog     bool // New flag to enable logging
 }
 
-func main() {
-	// Define flags
-	source := flag.String("source", "", "Path to the source directory containing pictures")
-	dest := flag.String("dest", "", "Path to the destination directory for organized pictures")
-	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optional)")
-	delete := flag.Bool("delete", false, "Delete source files after processing")
-	logFile := flag.Bool("enable-log", false, "Enable logging to a file")
-
-	// Parse the flags
-	flag.Parse()
-
-	// Validate required flags
-	if *source == "" || *dest == "" {
-		fmt.Println("Usage:")
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-
-	// Initialize Params struct
-	params := &Params{
-		Source:       *source,
-		Destination:  *dest,
-		Compression:  *compression,
-		DeleteSource: *delete,
-		EnableLog:    *logFile,
-	}
-
-	// Run the main logic
-	if err := run(params); err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-}
-
-func run(params *Params) error {
+func Organize(params *Params) error {
 	// Validate source directory existence
 	if _, err := os.Stat(params.Source); os.IsNotExist(err) {
 		return fmt.Errorf("source directory does not exist: %s", params.Source)
@@ -93,7 +59,7 @@ func run(params *Params) error {
 	log.Printf("Delete source files: %t", params.DeleteSource)
 
 	// Count files in the source directory
-	totalFiles, size, err := internal.CountFiles(params.Source)
+	totalFiles, size, err := utils.CountFiles(params.Source)
 	if err != nil {
 		return fmt.Errorf("error counting files: %v", err)
 	}
@@ -120,7 +86,7 @@ func run(params *Params) error {
 	}
 
 	// List files in the source directory
-	files, err := internal.ListFiles(params.Source)
+	files, err := utils.ListFiles(params.Source)
 	if err != nil {
 		return fmt.Errorf("error listing files: %v", err)
 	}
@@ -134,7 +100,7 @@ func run(params *Params) error {
 	defer os.Remove(testFile)
 
 	// Move and optionally compress files
-	summary, err := internal.ProcessFiles(files, params.Destination, params.Compression, params.DeleteSource)
+	summary, err := utils.ProcessFiles(files, params.Destination, params.Compression, params.DeleteSource)
 	if err != nil {
 		return fmt.Errorf("error moving files: %v", err)
 	}
