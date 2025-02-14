@@ -1,4 +1,4 @@
-package internal
+package utils
 
 import (
 	"image"
@@ -345,7 +345,7 @@ func TestFileRemovalAfterProcessing(t *testing.T) {
 
 func TestListFilesWithTestdata(t *testing.T) {
 	// Step 1: Point to the testdata folder
-	testdataDir := "testdata/exif"
+	testdataDir := "../testdata/exif"
 
 	// Step 2: Call ListFiles
 	result, err := ListFiles(testdataDir)
@@ -379,7 +379,7 @@ func TestListFilesWithTestdata(t *testing.T) {
 }
 
 func TestListFilesHandlesExifErrors(t *testing.T) {
-	testdataDir := "testdata/exif"
+	testdataDir := "../testdata/exif"
 
 	// Call ListFiles
 	result, err := ListFiles(testdataDir)
