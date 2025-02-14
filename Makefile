@@ -17,7 +17,7 @@ benchmark-stats:
 # Compilation
 build:
 	@mkdir -p $(BIN_DIR)                       # Create the bin directory
-	go build -o $(BIN_DIR)/$(APP_NAME) $(SRC_DIR)/main.go
+	go build -o $(BIN_DIR)/$(APP_NAME) $(SRC_DIR)/cmd/main.go
 
 # Cleaning
 clean:
