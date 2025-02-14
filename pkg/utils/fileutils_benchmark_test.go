@@ -41,12 +41,12 @@ func makeBenchmarkMediaDirectory(b *testing.B, sampleCount int) string {
 	tmpDir := b.TempDir()
 
 	for i := 0; i < sampleCount; i++ {
-		err := copyFile("./testdata/sony/DSC00001.ARW", path.Join(tmpDir, fmt.Sprintf("%d.ARW", i)))
+		err := copyFile("../testdata/sony/DSC00001.ARW", path.Join(tmpDir, fmt.Sprintf("%d.ARW", i)))
 		if err != nil {
 			b.Fatalf("failed to copy sample RAW file: %v", err)
 		}
 
-		err = copyFile("./testdata/sony/DSC00001.JPG", path.Join(tmpDir, fmt.Sprintf("%d.JPG", i)))
+		err = copyFile("../testdata/sony/DSC00001.JPG", path.Join(tmpDir, fmt.Sprintf("%d.JPG", i)))
 		if err != nil {
 			b.Fatalf("failed to copy sample JPG file: %v", err)
 		}
