@@ -1,4 +1,4 @@
-package internal
+package utils
 
 import (
 	"testing"
@@ -14,25 +14,25 @@ func TestGetExifDate(t *testing.T) {
 	}{
 		{
 			name:         "Valid EXIF metadata",
-			filePath:     "testdata/exif/sample_with_exif.jpg",
+			filePath:     "../testdata/exif/sample_with_exif.jpg",
 			expectedDate: time.Date(2022, 12, 25, 10, 30, 0, 0, time.UTC),
 			expectError:  false,
 		},
 		{
 			name:         "File without EXIF metadata",
-			filePath:     "testdata/exif/sample_without_exif.jpg",
+			filePath:     "../testdata/exif/sample_without_exif.jpg",
 			expectedDate: time.Time{},
 			expectError:  true,
 		},
 		{
 			name:         "Nonexistent file",
-			filePath:     "testdata/exif/nonexistent.jpg",
+			filePath:     "../testdata/exif/nonexistent.jpg",
 			expectedDate: time.Time{},
 			expectError:  true,
 		},
 		{
 			name:         "Corrupted file",
-			filePath:     "testdata/exif/sample_corrupted_exif.jpg",
+			filePath:     "../testdata/exif/sample_corrupted_exif.jpg",
 			expectedDate: time.Time{},
 			expectError:  true,
 		},
