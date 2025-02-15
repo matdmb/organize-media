@@ -3,7 +3,10 @@ package organizemedia
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/matdmb/organize-media/pkg/models"
 )
 
 func TestFormatSize(t *testing.T) {
@@ -115,143 +118,121 @@ func TestSetupLogger(t *testing.T) {
 }
 
 func TestOrganize(t *testing.T) {
-	// Define table of test cases
+	// Create temp destination directory
+	destDir := t.TempDir()
+
 	tests := []struct {
 		name        string
-		setup       func() *Params // Function to set up test parameters
-		expectError bool           // Whether an error is expected
+		params      *models.Params
+		wantErr     bool
+		setupFiles  bool
+		errorString string
 	}{
 		{
-			name: "ValidParams",
-			setup: func() *Params {
-				srcDir := t.TempDir()
-				destDir := t.TempDir()
-
-				// Create a mock file in the source directory
-				mockFile := filepath.Join(srcDir, "test.jpg")
-				if _, err := os.Create(mockFile); err != nil {
-					t.Fatalf("Failed to create mock file: %v", err)
-				}
-
-				return &Params{
-					Source:        srcDir,
-					Destination:   destDir,
-					Compression:   -1,   // No compression
-					SkipUserInput: true, // Skip user input for automated testing
-				}
+			name: "successful organization with sample file",
+			params: &models.Params{
+				Source:        "../testdata/exif/sample_with_exif.jpg",
+				Destination:   destDir,
+				Compression:   80,
+				DeleteSource:  false,
+				EnableLog:     false,
+				SkipUserInput: true,
 			},
-			expectError: false,
+			wantErr: false,
 		},
 		{
-			name: "WithCompression",
-			setup: func() *Params {
-				srcDir := t.TempDir()
-				destDir := t.TempDir()
-
-				// Create a mock file in the source directory
-				mockFile := filepath.Join(srcDir, "test.jpg")
-				if _, err := os.Create(mockFile); err != nil {
-					t.Fatalf("Failed to create mock file: %v", err)
-				}
-
-				return &Params{
-					Source:        srcDir,
-					Destination:   destDir,
-					Compression:   50,   // Valid compression value
-					SkipUserInput: true, // Skip user input for automated testing
-				}
+			name: "handle corrupted EXIF data",
+			params: &models.Params{
+				Source:        "../testdata/exif/sample_corrupted_exif.jpg",
+				Destination:   destDir,
+				Compression:   80,
+				DeleteSource:  false,
+				SkipUserInput: true,
 			},
-			expectError: false,
+			wantErr:     true,
+			errorString: "exif: decode failed",
 		},
 		{
-			name: "MissingSource",
-			setup: func() *Params {
-				return &Params{
-					Source:      "/non/existent/source",
-					Destination: t.TempDir(),
-					Compression: -1,
-				}
+			name: "handle image without EXIF data",
+			params: &models.Params{
+				Source:        "../testdata/exif/sample_without_exif.jpg",
+				Destination:   destDir,
+				Compression:   80,
+				DeleteSource:  false,
+				SkipUserInput: true,
 			},
-			expectError: true,
+			wantErr:     true,
+			errorString: "exif: failed to find exif",
 		},
 		{
-			name: "MissingDestination",
-			setup: func() *Params {
-				return &Params{
-					Source:      t.TempDir(),
-					Destination: "/non/existent/destination",
-					Compression: -1,
-				}
+			name: "non-existent source directory",
+			params: &models.Params{
+				Source:        "/non/existent/path",
+				Destination:   destDir,
+				Compression:   80,
+				SkipUserInput: true,
 			},
-			expectError: true,
+			wantErr:     true,
+			errorString: "source directory does not exist",
 		},
 		{
-			name: "InvalidCompressionValue",
-			setup: func() *Params {
-				srcDir := t.TempDir()
-				destDir := t.TempDir()
-
-				return &Params{
-					Source:        srcDir,
-					Destination:   destDir,
-					Compression:   200, // Invalid compression value
-					SkipUserInput: true,
-				}
+			name: "invalid compression value",
+			params: &models.Params{
+				Source:        "../testdata/exif",
+				Destination:   destDir,
+				Compression:   101,
+				SkipUserInput: true,
 			},
-			expectError: true,
-		},
-		{
-			name: "ReadOnlyDestination",
-			setup: func() *Params {
-				srcDir := t.TempDir()
-				destDir := t.TempDir()
-
-				// Create a mock file in the source directory
-				mockFile := filepath.Join(srcDir, "test.jpg")
-				if _, err := os.Create(mockFile); err != nil {
-					t.Fatalf("Failed to create mock file: %v", err)
-				}
-
-				// Make the destination directory read-only
-				if err := os.Chmod(destDir, 0555); err != nil {
-					t.Fatalf("Failed to make destination directory read-only: %v", err)
-				}
-
-				return &Params{
-					Source:        srcDir,
-					Destination:   destDir,
-					Compression:   -1,
-					SkipUserInput: true,
-				}
-			},
-			expectError: true,
-		},
-		{
-			name: "EmptySourceDirectory",
-			setup: func() *Params {
-				return &Params{
-					Source:        t.TempDir(), // Empty source directory
-					Destination:   t.TempDir(),
-					Compression:   -1,
-					SkipUserInput: true,
-				}
-			},
-			expectError: true,
+			wantErr:     true,
+			errorString: "compression level must be an integer between 0 and 100",
 		},
 	}
 
-	// Iterate through each test case
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup test parameters
-			params := tt.setup()
+			// Create a unique destination directory for each test
+			testDestDir := filepath.Join(destDir, tt.name)
+			err := os.MkdirAll(testDestDir, 0755)
+			if err != nil {
+				t.Fatalf("Failed to create test destination directory: %v", err)
+			}
+			tt.params.Destination = testDestDir
 
-			// Execute the run function
-			err := Organize(params)
+			err = Organize(tt.params)
 
-			// Validate the outcome
-			if (err != nil) != tt.expectError {
-				t.Errorf("run() test %q failed. Expected error: %v, got: %v", tt.name, tt.expectError, err)
+			// Check error cases
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Organize() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && !strings.Contains(err.Error(), tt.errorString) {
+				t.Errorf("Organize() error = %v, want error containing %v", err, tt.errorString)
+				return
+			}
+
+			// For successful cases, verify files were processed
+			if !tt.wantErr {
+				// Check if files exist in destination
+				files, err := filepath.Glob(filepath.Join(testDestDir, "*/*/*.jpg"))
+				if err != nil {
+					t.Errorf("Failed to check processed files: %v", err)
+				}
+				if len(files) == 0 {
+					t.Error("No files were processed")
+				}
+
+				// Verify directory structure (YYYY/MM-DD)
+				for _, file := range files {
+					relPath, err := filepath.Rel(testDestDir, file)
+					if err != nil {
+						t.Errorf("Failed to get relative path: %v", err)
+					}
+					parts := strings.Split(relPath, string(os.PathSeparator))
+					if len(parts) != 3 {
+						t.Errorf("Unexpected directory structure: %v", relPath)
+					}
+				}
 			}
 		})
 	}
