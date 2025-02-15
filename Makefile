@@ -23,7 +23,7 @@ build:
 clean:
 	@rm -rf $(BIN_DIR)                         # Delete the bin directory
 	@rm -f coverage.out                        # Delete the coverage file
-	@rm -rf ./logs                             # Delete the logs directory
+	@rm -rf ./cmd/logs                         # Delete the logs directory
 
 # Command to run the application
 run: build
