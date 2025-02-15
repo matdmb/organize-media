@@ -1,11 +1,6 @@
 package utils
 
-import (
-	"fmt"
-	"path"
-	"testing"
-)
-
+/*
 var result []ImageFile
 
 func BenchmarkListFiles(b *testing.B) {
@@ -54,3 +49,4 @@ func makeBenchmarkMediaDirectory(b *testing.B, sampleCount int) string {
 
 	return tmpDir
 }
+*/
