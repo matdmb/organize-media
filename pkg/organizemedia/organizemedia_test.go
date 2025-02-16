@@ -119,6 +119,7 @@ func TestSetupLogger(t *testing.T) {
 
 func TestOrganize(t *testing.T) {
 	// Create temp destination directory
+	sourDir := t.TempDir()
 	destDir := t.TempDir()
 
 	tests := []struct {
@@ -134,6 +135,18 @@ func TestOrganize(t *testing.T) {
 				Source:        "../testdata/exif/sample_with_exif.jpg",
 				Destination:   destDir,
 				Compression:   80,
+				DeleteSource:  false,
+				EnableLog:     false,
+				SkipUserInput: true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "successful organization with compression set to -1",
+			params: &models.Params{
+				Source:        "../testdata/exif/sample_with_exif.jpg",
+				Destination:   destDir,
+				Compression:   -1,
 				DeleteSource:  false,
 				EnableLog:     false,
 				SkipUserInput: true,
@@ -185,6 +198,17 @@ func TestOrganize(t *testing.T) {
 			},
 			wantErr:     true,
 			errorString: "compression level must be an integer between 0 and 100",
+		},
+		{
+			name: "empty source directory",
+			params: &models.Params{
+				Source:        sourDir,
+				Destination:   destDir,
+				Compression:   50,
+				SkipUserInput: true,
+			},
+			wantErr:     true,
+			errorString: "no files to process in source directory",
 		},
 	}
 
