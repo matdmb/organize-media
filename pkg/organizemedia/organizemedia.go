@@ -97,6 +97,13 @@ func Organize(params *models.Params) error {
 	log.Printf("Number of files compressed: %d", summary.Compressed)
 	log.Printf("Number of files deleted: %d", summary.Deleted)
 	log.Printf("Number of files skipped: %d", summary.Skipped)
+
+	log.Printf("Processing completed in %v", summary.Duration)
+	if summary.Processed > 0 {
+		avgTime := summary.Duration.Seconds() / float64(summary.Processed)
+		log.Printf("Average time per file: %.2f seconds", avgTime)
+	}
+
 	log.Println("Process completed.")
 
 	return nil

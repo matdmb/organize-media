@@ -329,8 +329,17 @@ func TestProcessMediaFiles(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				if summary != tt.wantSummary {
-					t.Errorf("ProcessMediaFiles() summary = %+v, want %+v", summary, tt.wantSummary)
+				// Compare everything except Duration
+				gotSummary := ProcessingSummary{
+					Processed:  summary.Processed,
+					Compressed: summary.Compressed,
+					Copied:     summary.Copied,
+					Skipped:    summary.Skipped,
+					Deleted:    summary.Deleted,
+				}
+
+				if gotSummary != tt.wantSummary {
+					t.Errorf("ProcessMediaFiles() summary = %+v, want %+v", gotSummary, tt.wantSummary)
 				}
 
 				// Verify files were processed
