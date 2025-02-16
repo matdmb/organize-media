@@ -134,6 +134,7 @@ func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
 			// Extract date from EXIF metadata
 			date, err := exifData.DateTime()
 			if err != nil {
+				log.Printf("Warning: could not get EXIF date for file %s: %v", path, err)
 				return err
 			}
 
