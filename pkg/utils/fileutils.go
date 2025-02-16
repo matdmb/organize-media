@@ -27,6 +27,7 @@ type ProcessingSummary struct {
 	Copied     int
 	Skipped    int
 	Deleted    int
+	Duration   time.Duration
 }
 
 var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw"}
@@ -96,6 +97,8 @@ func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJP
 }
 
 func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
+	start := time.Now()
+
 	var summary ProcessingSummary
 
 	log.Printf("Starting processing files...")
@@ -152,6 +155,8 @@ func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
 	if err != nil {
 		return summary, fmt.Errorf("failed to walk directory: %w", err)
 	}
+
+	summary.Duration = time.Since(start)
 
 	return summary, nil
 }
