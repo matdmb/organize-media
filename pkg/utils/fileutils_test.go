@@ -235,3 +235,114 @@ func TestCopyOrCompressImage(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessMediaFiles(t *testing.T) {
+	// Create temp destination directory only
+	destDir := t.TempDir()
+
+	tests := []struct {
+		name        string
+		params      *models.Params
+		wantErr     bool
+		wantSummary ProcessingSummary
+	}{
+		{
+			name: "Process files with compression",
+			params: &models.Params{
+				Source:       "../testdata/exif/sample_with_exif.jpg",
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+			},
+			wantErr: false,
+			wantSummary: ProcessingSummary{
+				Processed:  1,
+				Compressed: 1,
+				Copied:     0,
+				Skipped:    0,
+				Deleted:    0,
+			},
+		},
+		{
+			name: "Process RAW file",
+			params: &models.Params{
+				Source:       "../testdata/sony/DSC00001.ARW",
+				Destination:  destDir,
+				Compression:  -1,
+				DeleteSource: false,
+			},
+			wantErr: false,
+			wantSummary: ProcessingSummary{
+				Processed:  1,
+				Compressed: 0,
+				Copied:     1,
+				Skipped:    0,
+				Deleted:    0,
+			},
+		},
+		{
+			name: "Process files with corrupted EXIF",
+			params: &models.Params{
+				Source:       "../testdata/exif/sample_corrupted_exif.jpg",
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+			},
+			wantErr:     true,
+			wantSummary: ProcessingSummary{},
+		},
+		{
+			name: "Process files without EXIF",
+			params: &models.Params{
+				Source:       "../testdata/exif/sample_without_exif.jpg",
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+			},
+			wantErr:     true,
+			wantSummary: ProcessingSummary{},
+		},
+		{
+			name: "Invalid source directory",
+			params: &models.Params{
+				Source:       "/nonexistent",
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+			},
+			wantErr:     true,
+			wantSummary: ProcessingSummary{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a new destination directory for each test
+			testDestDir := filepath.Join(destDir, tt.name)
+			tt.params.Destination = testDestDir
+
+			summary, err := ProcessMediaFiles(tt.params)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ProcessMediaFiles() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if summary != tt.wantSummary {
+					t.Errorf("ProcessMediaFiles() summary = %+v, want %+v", summary, tt.wantSummary)
+				}
+
+				// Verify files were processed
+				files, err := filepath.Glob(filepath.Join(testDestDir, "*/*/*.*"))
+				if err != nil {
+					t.Errorf("Failed to check processed files: %v", err)
+				}
+				expectedFiles := tt.wantSummary.Processed
+				if len(files) != expectedFiles {
+					t.Errorf("Expected %d processed files, got %d", expectedFiles, len(files))
+				}
+			}
+		})
+	}
+}
