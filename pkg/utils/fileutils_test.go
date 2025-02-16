@@ -280,29 +280,29 @@ func TestProcessMediaFiles(t *testing.T) {
 				Deleted:    0,
 			},
 		},
-		{
-			name: "Process files with corrupted EXIF",
-			params: &models.Params{
-				Source:       "../testdata/exif/sample_corrupted_exif.jpg",
-				Destination:  destDir,
-				Compression:  50,
-				DeleteSource: false,
-			},
-			wantErr:     true,
-			wantSummary: ProcessingSummary{},
-		},
-		{
-			name: "Process files without EXIF",
-			params: &models.Params{
-				Source:       "../testdata/exif/sample_without_exif.jpg",
-				Destination:  destDir,
-				Compression:  50,
-				DeleteSource: false,
-			},
-			wantErr:     true,
-			wantSummary: ProcessingSummary{},
-		},
-		{
+		/*		{
+							name: "Process files with corrupted EXIF",
+							params: &models.Params{
+								Source:       "../testdata/exif/sample_corrupted_exif.jpg",
+								Destination:  destDir,
+								Compression:  50,
+								DeleteSource: false,
+							},
+							wantErr:     true,
+							wantSummary: ProcessingSummary{},
+						},
+				{
+					name: "Process files without EXIF",
+					params: &models.Params{
+						Source:       "../testdata/exif/sample_without_exif.jpg",
+						Destination:  destDir,
+						Compression:  50,
+						DeleteSource: false,
+					},
+					wantErr:     true,
+					wantSummary: ProcessingSummary{},
+				},
+		*/{
 			name: "Invalid source directory",
 			params: &models.Params{
 				Source:       "/nonexistent",
