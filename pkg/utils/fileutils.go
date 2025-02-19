@@ -30,7 +30,7 @@ type ProcessingSummary struct {
 	Duration   time.Duration
 }
 
-var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw"}
+var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw", "raf"}
 
 // copyOrCompressImage processes the buffer, compressing if it's a JPG, and writes to disk.
 func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJPG bool, p *models.Params, summary *ProcessingSummary) error {
