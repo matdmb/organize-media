@@ -12,7 +12,7 @@ func TestMainFunction(t *testing.T) {
 	destDir := t.TempDir()
 
 	// Copy the sample image with EXIF data to the source directory
-	samplePath := "./../pkg/testdata/exif/sample_with_exif.jpg"
+	samplePath := "./pkg/testdata/exif/sample_with_exif.jpg"
 	destPath := filepath.Join(srcDir, "sample_with_exif.jpg")
 
 	// Read the sample file
