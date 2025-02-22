@@ -6,7 +6,7 @@ SRC_DIR := .
 # Compilation
 build:
 	@mkdir -p $(BIN_DIR)                       # Create the bin directory
-	go build -o $(BIN_DIR)/$(APP_NAME) $(SRC_DIR)/cmd/main.go
+	go build -o $(BIN_DIR)/$(APP_NAME) $(SRC_DIR)/main.go
 
 # Cleaning
 clean:
@@ -30,4 +30,4 @@ bench-files:
 		-run=^# \
 		./pkg/utils/... | tee benchmark_results.txt
 
-.PHONY: build clean run bench bench-files bench-stats deps-benchstat
+.PHONY: build clean run bench bench-files
