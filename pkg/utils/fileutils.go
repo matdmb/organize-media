@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -10,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/matdmb/organize-media/pkg/models"
+	"github.com/rwcarlsen/goexif/exif"
 )
 
 type ImageFile struct {
@@ -18,34 +22,150 @@ type ImageFile struct {
 }
 
 type ProcessingSummary struct {
-	Moved      int
+	Processed  int
 	Compressed int
+	Copied     int
 	Skipped    int
+	Deleted    int
+	Duration   time.Duration
 }
 
-var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw"}
+var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw", "raf"}
 
-// ListFiles traverses a directory and returns a slice of ImageFile structs for supported image formats.
-func ListFiles(directory string) ([]ImageFile, error) {
-	var files []ImageFile
+// copyOrCompressImage processes the buffer, compressing if it's a JPG, and writes to disk.
+func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJPG bool, p *models.Params, summary *ProcessingSummary) error {
 
-	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+	// Check if file already exists
+	if exists, err := fileExists(destPath); err != nil {
+		return fmt.Errorf("failed to check destination file: %w", err)
+	} else if exists {
+		log.Printf("[SKIPPED] Destination file already exists: %s", destPath)
+		summary.Skipped++
+		return nil
+	}
+
+	// Ensure the destination directory exists
+	if err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
+		return err
+	}
+
+	var outputBuffer []byte
+	var msg string
+	if isJPG && p.Compression >= 0 {
+		// Decode and re-encode with compression
+		img, _, err := image.Decode(bytes.NewReader(buffer))
 		if err != nil {
 			return err
 		}
 
+		var compressedBuffer bytes.Buffer
+		err = jpeg.Encode(&compressedBuffer, img, &jpeg.Options{Quality: p.Compression})
+		if err != nil {
+			return err
+		}
+		outputBuffer = compressedBuffer.Bytes()
+		summary.Compressed++
+		msg = "[COMPRESSED]"
+	} else {
+		// Use the original buffer if not JPG or compression is disabled
+		outputBuffer = buffer
+		summary.Copied++
+		msg = "[COPIED]"
+	}
+
+	// Create the destination file
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	// Write the processed buffer
+	_, err = destFile.Write(outputBuffer)
+	log.Printf("%s Processed file to: %s", msg, destPath)
+	summary.Processed++
+
+	if p.DeleteSource {
+		if err := os.Remove(sourceFile); err != nil {
+			return fmt.Errorf("failed to delete source file: %w", err)
+		}
+		log.Printf("[DELETED] Deleted source file: %s", sourceFile)
+		summary.Deleted++
+	}
+
+	return err
+}
+
+func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
+	start := time.Now()
+	var summary ProcessingSummary
+
+	log.Printf("Starting processing files...")
+
+	err := filepath.Walk(p.Source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("failed to access path %q: %w", path, err)
+		}
+
 		if !info.IsDir() && isAllowedExtension(filepath.Ext(info.Name())) {
-			fileDate, err := GetExifDate(path)
+			fmt.Printf("Processing file: %s\n", path)
+
+			// Open the file
+			file, err := os.Open(path)
 			if err != nil {
-				log.Printf("Warning: could not get EXIF date for file %s: %v", path, err)
-				return nil
+				summary.Skipped++
+				log.Printf("[SKIPPED] Could not open file %s: %v", path, err)
+				return nil // Continue to next file
 			}
-			files = append(files, ImageFile{Path: path, Date: fileDate})
+			defer file.Close()
+
+			// Read the entire file into memory
+			buffer, err := io.ReadAll(file)
+			if err != nil {
+				summary.Skipped++
+				log.Printf("[SKIPPED] Could not read file %s: %v", path, err)
+				return nil // Continue to next file
+			}
+
+			// Check if it's a JPG
+			isJPG := strings.HasSuffix(strings.ToLower(path), ".jpg") || strings.HasSuffix(strings.ToLower(path), ".jpeg")
+
+			// Decode EXIF data from the buffer
+			exifData, err := exif.Decode(bytes.NewReader(buffer))
+			if err != nil {
+				summary.Skipped++
+				log.Printf("[SKIPPED] Could not read EXIF data from %s: %v", path, err)
+				return nil // Continue to next file
+			}
+
+			// Extract date from EXIF metadata
+			date, err := exifData.DateTime()
+			if err != nil {
+				summary.Skipped++
+				log.Printf("[SKIPPED] Could not get date from EXIF data for %s: %v", path, err)
+				return nil // Continue to next file
+			}
+
+			// Format destination folder structure
+			destDir := filepath.Join(p.Destination, fmt.Sprintf("%d", date.Year()), fmt.Sprintf("%02d-%02d", date.Month(), date.Day()))
+			destPath := filepath.Join(destDir, filepath.Base(path))
+
+			// Copy or compress before writing
+			if err := copyOrCompressImage(destPath, path, buffer, isJPG, p, &summary); err != nil {
+				log.Printf("Failed to process file %s: %v", path, err)
+				return nil // Continue to next file
+			}
 		}
 		return nil
 	})
 
-	return files, err
+	if err != nil {
+		return summary, fmt.Errorf("failed to walk directory: %w", err)
+	}
+
+	summary.Duration = time.Since(start)
+
+	return summary, nil
 }
 
 // isAllowedExtension checks if the file extension is in the list of allowed extensions.
@@ -82,47 +202,6 @@ func CountFiles(dir string) (int, int64, error) {
 	return count, totalSize, err
 }
 
-// ProcessFiles moves or copy image files to a destination directory, creating year/month-day subdirectories.
-// If a compression level is specified (0-100), JPG files are compressed before being processed.
-func ProcessFiles(files []ImageFile, dest string, compression int, deleteFile bool) (ProcessingSummary, error) {
-	var summary ProcessingSummary
-
-	log.Printf("Starting processing files...")
-
-	for _, file := range files {
-		fmt.Printf("Processing file: %s (Extension: %s)\n", file.Path, filepath.Ext(file.Path))
-
-		targetPath, err := createDestinationPath(dest, file)
-		if err != nil {
-			return summary, err
-		}
-
-		if exists, err := fileExists(targetPath); err != nil {
-			return summary, err
-		} else if exists {
-			log.Printf("[SKIPPED] File already exists: %s, skipping...", targetPath)
-			summary.Skipped++
-			continue
-		}
-
-		if err := processFile(file, targetPath, compression, deleteFile, &summary); err != nil {
-			return summary, err
-		}
-	}
-	return summary, nil
-}
-
-func createDestinationPath(dest string, file ImageFile) (string, error) {
-	yearDir := filepath.Join(dest, fmt.Sprintf("%d", file.Date.Year()))
-	monthDayDir := filepath.Join(yearDir, fmt.Sprintf("%02d-%02d", file.Date.Month(), file.Date.Day()))
-
-	if err := os.MkdirAll(monthDayDir, os.ModePerm); err != nil {
-		return "", fmt.Errorf("failed to create directory %s: %w", monthDayDir, err)
-	}
-
-	return filepath.Join(monthDayDir, filepath.Base(file.Path)), nil
-}
-
 func fileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -132,97 +211,4 @@ func fileExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-func processFile(file ImageFile, targetPath string, compression int, deleteFile bool, summary *ProcessingSummary) error {
-	isJPG := strings.ToLower(filepath.Ext(file.Path)) == ".jpg"
-	if isJPG && compression >= 0 {
-		return handleJPGFile(file.Path, targetPath, compression, deleteFile, summary)
-	}
-	return handleNonJPGFile(file.Path, targetPath, deleteFile, summary)
-}
-
-func handleJPGFile(srcPath, targetPath string, compression int, deleteFile bool, summary *ProcessingSummary) error {
-
-	if err := compressImage(srcPath, targetPath, compression); err != nil {
-		return err
-	}
-
-	if deleteFile {
-		if err := os.Remove(srcPath); err != nil {
-			return fmt.Errorf("failed to delete original file %s: %v", srcPath, err)
-		}
-		log.Printf("[COMPRESSED] Compressed and moved file to: %s", targetPath)
-	} else {
-		log.Printf("[COMPRESSED] Compressed fileto : %s", targetPath)
-	}
-	summary.Compressed++
-	return nil
-}
-
-func handleNonJPGFile(srcPath, targetPath string, deleteFile bool, summary *ProcessingSummary) error {
-
-	if deleteFile {
-		if err := os.Rename(srcPath, targetPath); err != nil {
-			return fmt.Errorf("failed to move file %s to %s: %w", srcPath, targetPath, err)
-		}
-		log.Printf("[MOVED] Moved file to: %s", targetPath)
-	} else {
-		if err := copyFile(srcPath, targetPath); err != nil {
-			return err
-		}
-		log.Printf("[COPIED] Copied file to: %s", targetPath)
-	}
-	summary.Moved++
-	return nil
-}
-
-func copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("failed to open source file %s: %w", src, err)
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("failed to create destination file %s: %w", dest, err)
-	}
-	defer destFile.Close()
-
-	if _, err := io.Copy(destFile, srcFile); err != nil {
-		return fmt.Errorf("failed to copy file from %s to %s: %w", src, dest, err)
-	}
-	return nil
-}
-
-// compressImage compresses a JPG image to the specified quality level and moves it to the destination.
-func compressImage(src, dest string, quality int) error {
-	// Open the source image
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("failed to open source file %s: %v", src, err)
-	}
-	defer srcFile.Close()
-
-	// Decode the image
-	img, _, err := image.Decode(srcFile)
-	if err != nil {
-		return fmt.Errorf("failed to decode image %s: %v", src, err)
-	}
-
-	// Create the destination file
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("failed to create destination file %s: %v", dest, err)
-	}
-	defer destFile.Close()
-
-	// Encode the image with the specified quality
-	options := &jpeg.Options{Quality: quality}
-	if err := jpeg.Encode(destFile, img, options); err != nil {
-		return fmt.Errorf("failed to encode image %s: %v", dest, err)
-	}
-	fmt.Printf("Compressed file %s created from %s\n", dest, src)
-	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/matdmb/organize-media/pkg/models"
 	"github.com/matdmb/organize-media/pkg/organizemedia"
 )
 
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	// Initialize Params struct
-	params := &organizemedia.Params{
+	params := &models.Params{
 		Source:       *source,
 		Destination:  *dest,
 		Compression:  *compression,
