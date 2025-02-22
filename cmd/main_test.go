@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -10,10 +11,19 @@ func TestMainFunction(t *testing.T) {
 	srcDir := t.TempDir()
 	destDir := t.TempDir()
 
-	// Create a mock file in the source directory
-	mockFile := srcDir + "/test.jpg"
-	if _, err := os.Create(mockFile); err != nil {
-		t.Fatalf("Failed to create mock file: %v", err)
+	// Copy the sample image with EXIF data to the source directory
+	samplePath := "./../pkg/testdata/exif/sample_with_exif.jpg"
+	destPath := filepath.Join(srcDir, "sample_with_exif.jpg")
+
+	// Read the sample file
+	sampleData, err := os.ReadFile(samplePath)
+	if err != nil {
+		t.Fatalf("Failed to read sample file: %v", err)
+	}
+
+	// Write to destination in temp directory
+	if err := os.WriteFile(destPath, sampleData, 0644); err != nil {
+		t.Fatalf("Failed to copy sample file: %v", err)
 	}
 
 	// Mock `os.Stdin` to automatically provide input
@@ -28,7 +38,18 @@ func TestMainFunction(t *testing.T) {
 			t.Fatalf("main() panicked: %v", r)
 		}
 	}()
+
 	main()
+
+	// Verify the file was processed
+	processedFiles, err := filepath.Glob(filepath.Join(destDir, "*/*/*.jpg"))
+	if err != nil {
+		t.Fatalf("Failed to check processed files: %v", err)
+	}
+
+	if len(processedFiles) != 1 {
+		t.Errorf("Expected 1 processed file, got %d", len(processedFiles))
+	}
 }
 
 func mockInput(input string) func() {
