@@ -9,19 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matdmb/organize-media/pkg/models"
 	"github.com/matdmb/organize-media/pkg/utils"
 )
 
-type Params struct {
-	Source        string
-	Destination   string
-	Compression   int
-	SkipUserInput bool // New flag to bypass user input
-	DeleteSource  bool // New flag to delete source files after processing
-	EnableLog     bool // New flag to enable logging
-}
-
-func Organize(params *Params) error {
+func Organize(params *models.Params) error {
 	// Validate source directory existence
 	if _, err := os.Stat(params.Source); os.IsNotExist(err) {
 		return fmt.Errorf("source directory does not exist: %s", params.Source)
@@ -85,12 +77,6 @@ func Organize(params *Params) error {
 		log.Println("Skipping user input confirmation (test mode).")
 	}
 
-	// List files in the source directory
-	files, err := utils.ListFiles(params.Source)
-	if err != nil {
-		return fmt.Errorf("error listing files: %v", err)
-	}
-
 	// Ensure destination directory is writable
 	testFile := filepath.Join(params.Destination, "test_write.tmp")
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
@@ -99,18 +85,25 @@ func Organize(params *Params) error {
 	// Remove the test file after the check
 	defer os.Remove(testFile)
 
-	// Move and optionally compress files
-	summary, err := utils.ProcessFiles(files, params.Destination, params.Compression, params.DeleteSource)
+	summary, err := utils.ProcessMediaFiles(params)
 	if err != nil {
 		return fmt.Errorf("error moving files: %v", err)
 	}
 
 	// Print processing summary
-	log.Printf("Processing Summary:\n")
-	log.Printf("%d files have been successfully processed.\n", summary.Moved+summary.Compressed)
-	log.Printf("Files processed without compression: %d\n", summary.Moved)
-	log.Printf("Files processed and compressed: %d\n", summary.Compressed)
-	log.Printf("Files skipped: %d\n", summary.Skipped)
+	log.Printf("Processing Summary:")
+	log.Printf("%d files have been successfully processed", summary.Processed)
+	log.Printf("Number of files copied: %d", summary.Copied)
+	log.Printf("Number of files compressed: %d", summary.Compressed)
+	log.Printf("Number of files deleted: %d", summary.Deleted)
+	log.Printf("Number of files skipped: %d", summary.Skipped)
+
+	log.Printf("Processing completed in %v", summary.Duration)
+	if summary.Processed > 0 {
+		avgTime := summary.Duration.Seconds() / float64(summary.Processed)
+		log.Printf("Average time per file: %.2f seconds", avgTime)
+	}
+
 	log.Println("Process completed.")
 
 	return nil
