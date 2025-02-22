@@ -3,17 +3,6 @@ APP_NAME := organize-media
 BIN_DIR := bin
 SRC_DIR := .
 
-
-# Benchmark
-benchmark:
-	go test -bench=. -count 1 -run=^# -benchtime=0.3s ./... -v
-
-deps-benchmark-stats:
-	go install golang.org/x/perf/cmd/benchstat
-
-benchmark-stats:
-	go test -bench=. -count 6 -run=^# -benchtime=0.3s ./... | benchstat -
-
 # Compilation
 build:
 	@mkdir -p $(BIN_DIR)                       # Create the bin directory
@@ -23,10 +12,22 @@ build:
 clean:
 	@rm -rf $(BIN_DIR)                         # Delete the bin directory
 	@rm -f coverage.out                        # Delete the coverage file
-	@rm -rf ./logs                             # Delete the logs directory
+	@rm -rf ./cmd/logs                         # Delete the logs directory
+	@rm -rf ./logs 
+	@rm -f old.txt new.txt benchmark_results.txt
 
 # Command to run the application
 run: build
 	./$(BIN_DIR)/$(APP_NAME) --source ../../Pictures/Import/ --dest ../../Pictures/RAW/ --compression 50 --enable-log
 
-.PHONY: build clean run
+# Benchmarking targets
+bench: bench-files
+
+bench-files:
+	go test -bench=BenchmarkProcessSpecificFiles \
+		-count=10 \
+		-benchtime=1x \
+		-run=^# \
+		./pkg/utils/... | tee benchmark_results.txt
+
+.PHONY: build clean run bench bench-files bench-stats deps-benchstat

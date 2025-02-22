@@ -53,44 +53,7 @@ Measure the performance of some code units with varying sample sizes:
 #### Simple benchmark
 More suited for quick runs, while developing benchmark tests:
 ```
-make benchmark
-```
-
-#### Advanced benchmark
-For more reliable and refined data: (Takes about 2 min to process)
-```
-make deps-benchmark-stats
-make benchmark-stats
-```
-
-Example output
-```
-go test -bench=. -count 6 -run=^# -benchtime=0.3s ./... | benchstat -
-goos: linux
-goarch: amd64
-pkg: github.com/matdmb/organize-media/internal
-cpu: AMD Ryzen 5 6600U with Radeon Graphics
-                              │      -       │
-                              │    sec/op    │
-ListFiles/with_0_samples-12     45.45µ ±  5%
-ListFiles/with_1_samples-12     402.3m ± 29%
-ListFiles/with_2_samples-12     615.6m ± 46%
-ListFiles/with_5_samples-12     697.0m ±  4%
-ListFiles/with_10_samples-12     1.367 ±  6%
-ListFiles/with_100_samples-12    24.62 ± 13%
-geomean                         253.3m`
-```
-
-> With a folder of 100 JPG + 100 RAW, function ListFiles takes about 24 seconds.
-
-### Profile
-While benchmark provides measuring of execution time, profiling allows to disassemble the execution.
-This can be useful to idenfity bottlenecks.
-
-Example of profiling the ListFiles function:
-```
-go test -bench=BenchmarkListFiles/with_1_samples -run=^# -benchmem -cpuprofile profile.out ./internal
-go tool pprof -http=: profile.out
+make bench
 ```
 
 ## Cleaning
