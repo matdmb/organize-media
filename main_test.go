@@ -12,8 +12,8 @@ func TestMainFunction(t *testing.T) {
 	destDir := t.TempDir()
 
 	// Copy the sample image with EXIF data to the source directory
-	samplePath := "./pkg/testdata/exif/sample_with_exif.jpg"
-	destPath := filepath.Join(srcDir, "sample_with_exif.jpg")
+	samplePath := "./pkg/testdata/DSC00001.JPG"
+	destPath := filepath.Join(srcDir, "DSC00001.JPG")
 
 	// Read the sample file
 	sampleData, err := os.ReadFile(samplePath)
@@ -42,7 +42,7 @@ func TestMainFunction(t *testing.T) {
 	main()
 
 	// Verify the file was processed
-	processedFiles, err := filepath.Glob(filepath.Join(destDir, "*/*/*.jpg"))
+	processedFiles, err := filepath.Glob(filepath.Join(destDir, "*/*/*.JPG"))
 	if err != nil {
 		t.Fatalf("Failed to check processed files: %v", err)
 	}

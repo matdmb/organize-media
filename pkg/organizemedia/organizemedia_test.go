@@ -132,7 +132,7 @@ func TestOrganize(t *testing.T) {
 		{
 			name: "successful organization with sample file",
 			params: &models.Params{
-				Source:        "../testdata/exif/sample_with_exif.jpg",
+				Source:        "../testdata/DSC00001.JPG",
 				Destination:   destDir,
 				Compression:   80,
 				DeleteSource:  false,
@@ -144,7 +144,7 @@ func TestOrganize(t *testing.T) {
 		{
 			name: "successful organization with compression set to -1",
 			params: &models.Params{
-				Source:        "../testdata/exif/sample_with_exif.jpg",
+				Source:        "../testdata/DSC00001.JPG",
 				Destination:   destDir,
 				Compression:   -1,
 				DeleteSource:  false,
@@ -191,7 +191,7 @@ func TestOrganize(t *testing.T) {
 		{
 			name: "invalid compression value",
 			params: &models.Params{
-				Source:        "../testdata/exif",
+				Source:        "../testdata",
 				Destination:   destDir,
 				Compression:   101,
 				SkipUserInput: true,
@@ -238,7 +238,7 @@ func TestOrganize(t *testing.T) {
 			// For successful cases, verify files were processed
 			if !tt.wantErr {
 				// Check if files exist in destination
-				files, err := filepath.Glob(filepath.Join(testDestDir, "*/*/*.jpg"))
+				files, err := filepath.Glob(filepath.Join(testDestDir, "*/*/*.JPG"))
 				if err != nil {
 					t.Errorf("Failed to check processed files: %v", err)
 				}
