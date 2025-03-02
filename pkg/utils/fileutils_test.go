@@ -249,7 +249,7 @@ func TestProcessMediaFiles(t *testing.T) {
 		{
 			name: "Process files with compression",
 			params: &models.Params{
-				Source:       "../testdata/exif/sample_with_exif.jpg",
+				Source:       "../testdata/DSC00001.JPG",
 				Destination:  destDir,
 				Compression:  50,
 				DeleteSource: false,
@@ -266,7 +266,7 @@ func TestProcessMediaFiles(t *testing.T) {
 		{
 			name: "Process RAW file",
 			params: &models.Params{
-				Source:       "../testdata/sony/DSC00001.ARW",
+				Source:       "../testdata/DSC00001.ARW",
 				Destination:  destDir,
 				Compression:  -1,
 				DeleteSource: false,
