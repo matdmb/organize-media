@@ -59,7 +59,8 @@ jobs:
       uses: codecov/codecov-action@v5
       if: success()
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.out
-        fail_ci_if_error: true  # Don't fail if token is missing
-      # Token is optional with newer GitHub integrations
-      # token is now set via CODECOV_TOKEN env
+        slug: ${{ github.repository }}
+        flags: unittests
+        fail_ci_if_error: true
