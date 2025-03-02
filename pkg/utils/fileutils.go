@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/matdmb/organize-media/pkg/models"
-	"github.com/rwcarlsen/goexif/exif"
 )
 
 type ImageFile struct {
@@ -29,8 +28,6 @@ type ProcessingSummary struct {
 	Deleted    int
 	Duration   time.Duration
 }
-
-var allowedExtensions = []string{".jpg", ".nef", ".cr2", "cr3", ".dng", ".arw", "raw", "raf"}
 
 // copyOrCompressImage processes the buffer, compressing if it's a JPG, and writes to disk.
 func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJPG bool, p *models.Params, summary *ProcessingSummary) error {
@@ -130,16 +127,8 @@ func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
 			// Check if it's a JPG
 			isJPG := strings.HasSuffix(strings.ToLower(path), ".jpg") || strings.HasSuffix(strings.ToLower(path), ".jpeg")
 
-			// Decode EXIF data from the buffer
-			exifData, err := exif.Decode(bytes.NewReader(buffer))
-			if err != nil {
-				summary.Skipped++
-				log.Printf("[SKIPPED] Could not read EXIF data from %s: %v", path, err)
-				return nil // Continue to next file
-			}
-
 			// Extract date from EXIF metadata
-			date, err := exifData.DateTime()
+			date, err := GetImageDateTime(buffer, filepath.Ext(info.Name()))
 			if err != nil {
 				summary.Skipped++
 				log.Printf("[SKIPPED] Could not get date from EXIF data for %s: %v", path, err)
@@ -171,12 +160,7 @@ func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
 // isAllowedExtension checks if the file extension is in the list of allowed extensions.
 func isAllowedExtension(ext string) bool {
 	ext = strings.ToLower(ext) // Normalize to lowercase
-	for _, allowed := range allowedExtensions {
-		if ext == allowed {
-			return true
-		}
-	}
-	return false
+	return SupportedExtensions[ext]
 }
 
 // CountFiles counts the number of files with allowed extensions in a directory.
