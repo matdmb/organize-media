@@ -20,7 +20,7 @@ func BenchmarkProcessSpecificFiles(b *testing.B) {
 	// Copy test files to source directory
 	testFiles := []string{"DSC00001.ARW", "DSC00001.JPG"}
 	for _, file := range testFiles {
-		srcPath := filepath.Join("../testdata/sony", file)
+		srcPath := filepath.Join("../testdata", file)
 		destPath := filepath.Join(sourceDir, file)
 
 		if err := copyFile(srcPath, destPath); err != nil {
