@@ -445,3 +445,135 @@ func TestOrganize(t *testing.T) {
 		})
 	}
 }
+
+// TestUserConfirmation tests the user confirmation functionality in the Organize function
+func TestUserConfirmation(t *testing.T) {
+	// Create test directories
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create a sample file to process
+	sampleFile := filepath.Join(sourceDir, "test.jpg")
+	if err := os.WriteFile(sampleFile, []byte("test data"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Back up standard input and create a pipe
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	testCases := []struct {
+		name          string
+		userInput     string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:          "User confirms with 'y'",
+			userInput:     "y\n",
+			expectError:   false,
+			errorContains: "",
+		},
+		{
+			name:          "User confirms with 'Y' (uppercase)",
+			userInput:     "Y\n",
+			expectError:   false,
+			errorContains: "",
+		},
+		{
+			name:          "User declines with 'n'",
+			userInput:     "n\n",
+			expectError:   true,
+			errorContains: "operation cancelled by user",
+		},
+		{
+			name:          "User enters other text",
+			userInput:     "maybe\n",
+			expectError:   true,
+			errorContains: "operation cancelled by user",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a pipe to simulate user input
+			r, w, _ := os.Pipe()
+			os.Stdin = r
+
+			// Write the test input
+			go func() {
+				w.Write([]byte(tc.userInput))
+				w.Close()
+			}()
+
+			// Create params with SkipUserInput set to false
+			params := &models.Params{
+				Source:        sourceDir,
+				Destination:   destDir,
+				Compression:   -1,
+				SkipUserInput: false, // Force user confirmation prompt
+			}
+
+			// Call Organize
+			err := Organize(params)
+
+			// Check error status
+			if tc.expectError && err == nil {
+				t.Errorf("Expected error but got nil")
+			}
+			if !tc.expectError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+
+			// Check error message if expected
+			if tc.expectError && err != nil {
+				if !strings.Contains(err.Error(), tc.errorContains) {
+					t.Errorf("Expected error to contain '%s', got: %v", tc.errorContains, err)
+				}
+			}
+		})
+	}
+}
+
+// TestUserConfirmationError tests the error handling in user confirmation
+func TestUserConfirmationError(t *testing.T) {
+	// Create test directories
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create a sample file to process
+	sampleFile := filepath.Join(sourceDir, "test.jpg")
+	if err := os.WriteFile(sampleFile, []byte("test data"), 0644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Back up standard input
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+
+	// Create a read-only pipe to simulate an input error
+	r, _, _ := os.Pipe()
+	r.Close() // Close it to force a read error
+	os.Stdin = r
+
+	// Create params with SkipUserInput set to false
+	params := &models.Params{
+		Source:        sourceDir,
+		Destination:   destDir,
+		Compression:   -1,
+		SkipUserInput: false, // Force user confirmation prompt
+	}
+
+	// Call Organize
+	err := Organize(params)
+
+	// Check that we got an error
+	if err == nil {
+		t.Errorf("Expected error on reading input but got nil")
+	}
+
+	// Check that the error contains the expected message
+	if err != nil && !strings.Contains(err.Error(), "error reading input") {
+		t.Errorf("Expected error to contain 'error reading input', got: %v", err)
+	}
+}
