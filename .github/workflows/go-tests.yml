@@ -22,39 +22,48 @@ jobs:
       uses: actions/checkout@v4
       with:
         lfs: true
-        
-    # Step 2: Pull LFS objects
+
+    # Step 2: Restore LFS cache
+    - name: Restore LFS cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.git/lfs
+        key: lfs-${{ runner.os }}-${{ github.sha }}
+        restore-keys: |
+          lfs-${{ runner.os }}-
+
+    # Step 3: Pull LFS objects
     - name: Pull LFS objects
       run: git lfs pull
         
-    # Step 3: Set up Go environment
+    # Step 4: Set up Go environment
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.24'
         cache: true
 
-    # Step 4: Install dependencies
+    # Step 5: Install dependencies
     - name: Install dependencies
       run: go mod tidy
 
-    # Step 5: Install golangci-lint
+    # Step 6: Install golangci-lint
     - name: Install golangci-lint
       run: |
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.63.4
         golangci-lint --version
 
-    # Step 6: Run golangci-lint
+    # Step 7: Run golangci-lint
     - name: Run golangci-lint
       run: golangci-lint run ./...
 
-    # Step 7: Run tests with coverage
+    # Step 8: Run tests with coverage
     - name: Run tests and generate coverage
       run: |
         go test -race -v ./... -coverprofile=coverage.out
         go tool cover -func=coverage.out
 
-    # Step 8: Upload coverage to Codecov
+    # Step 9: Upload coverage to Codecov
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       if: success()
