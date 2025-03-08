@@ -24,21 +24,54 @@ func getSkippedCount() int {
 
 func TestIsAllowedExtension(t *testing.T) {
 	tests := []struct {
-		ext      string
-		expected bool
+		name      string
+		extension string
+		want      bool
 	}{
-		{".jpg", true},
-		{".JPG", true}, // Test case-insensitivity
-		{".nef", true},
-		{".png", false},
-		{".txt", false},
+		{
+			name:      "JPG extension",
+			extension: ".jpg",
+			want:      true,
+		},
+		{
+			name:      "JPEG extension",
+			extension: ".jpeg",
+			want:      true,
+		},
+		{
+			name:      "Upper case JPG",
+			extension: ".JPG",
+			want:      true,
+		},
+		{
+			name:      "RAW extension",
+			extension: ".arw", // Sony RAW
+			want:      true,
+		},
+		{
+			name:      "Unsupported extension",
+			extension: ".txt",
+			want:      false,
+		},
+		{
+			name:      "Empty extension",
+			extension: "",
+			want:      false,
+		},
+		{
+			name:      "Non-media extension",
+			extension: ".exe",
+			want:      false,
+		},
 	}
 
-	for _, test := range tests {
-		result := isAllowedExtension(test.ext)
-		if result != test.expected {
-			t.Errorf("isAllowedExtension(%s) = %v; want %v", test.ext, result, test.expected)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isAllowedExtension(tt.extension)
+			if got != tt.want {
+				t.Errorf("isAllowedExtension(%q) = %v, want %v", tt.extension, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -510,4 +543,232 @@ func TestProcessMediaFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestProcessMediaFiles_EdgeCases tests various edge cases for the ProcessMediaFiles function
+func TestProcessMediaFiles_EdgeCases(t *testing.T) {
+	// Create test directories
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Test case: Empty source directory
+	t.Run("Empty source directory", func(t *testing.T) {
+		params := &models.Params{
+			Source:      sourceDir,
+			Destination: destDir,
+			Compression: -1,
+		}
+
+		summary, err := ProcessMediaFiles(params)
+		if err != nil {
+			t.Errorf("ProcessMediaFiles failed with empty source: %v", err)
+		}
+		if summary.Processed != 0 {
+			t.Errorf("Expected 0 processed files, got %d", summary.Processed)
+		}
+	})
+
+	// Test case: Non-media files
+	t.Run("Non-media files", func(t *testing.T) {
+		// Create a non-media file
+		nonMediaFile := filepath.Join(sourceDir, "test.txt")
+		if err := os.WriteFile(nonMediaFile, []byte("test data"), 0644); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:      sourceDir,
+			Destination: destDir,
+			Compression: -1,
+		}
+
+		summary, err := ProcessMediaFiles(params)
+		if err != nil {
+			t.Errorf("ProcessMediaFiles failed with non-media file: %v", err)
+		}
+		if summary.Processed != 0 {
+			t.Errorf("Expected 0 processed files (non-media should be ignored), got %d", summary.Processed)
+		}
+	})
+
+	// Test case: Corrupted JPEG file (no EXIF data)
+	t.Run("Corrupted JPEG file", func(t *testing.T) {
+		// Create a fake JPEG file without valid EXIF data
+		corruptedFile := filepath.Join(sourceDir, "corrupted.jpg")
+		if err := os.WriteFile(corruptedFile, []byte("Not a valid JPEG"), 0644); err != nil {
+			t.Fatalf("Failed to create corrupted file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:      sourceDir,
+			Destination: destDir,
+			Compression: -1,
+		}
+
+		summary, err := ProcessMediaFiles(params)
+		if err != nil {
+			t.Errorf("ProcessMediaFiles failed with corrupted file: %v", err)
+		}
+		// The file should be skipped due to EXIF extraction failure
+		if summary.Skipped != 1 {
+			t.Errorf("Expected 1 skipped file, got %d", summary.Skipped)
+		}
+	})
+
+	// Test case: File with same name already exists in destination
+	t.Run("Destination file already exists", func(t *testing.T) {
+		// Create directories that match the expected output structure
+		// We'll mimic a file from 2023/01-01
+		destStructure := filepath.Join(destDir, "2023", "01-01")
+		if err := os.MkdirAll(destStructure, os.ModePerm); err != nil {
+			t.Fatalf("Failed to create destination structure: %v", err)
+		}
+
+		// Copy a test image to source
+		sourceImage := filepath.Join("../testdata", "image.jpg")
+		destImage := filepath.Join(sourceDir, "image.jpg")
+		if err := copyTestFile(sourceImage, destImage); err != nil {
+			t.Skipf("Test skipped: Could not copy test file: %v", err)
+			return
+		}
+
+		// Create a file with the same name in the destination
+		duplicateFile := filepath.Join(destStructure, "image.jpg")
+		if err := os.WriteFile(duplicateFile, []byte("existing file"), 0644); err != nil {
+			t.Fatalf("Failed to create duplicate file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:      sourceDir,
+			Destination: destDir,
+			Compression: -1,
+		}
+
+		summary, err := ProcessMediaFiles(params)
+		if err != nil {
+			t.Errorf("ProcessMediaFiles failed with duplicate file: %v", err)
+		}
+		if summary.Skipped != 1 {
+			t.Errorf("Expected 1 skipped file (due to duplicate), got %d", summary.Skipped)
+		}
+	})
+
+	// Test case: Delete source files
+	t.Run("Delete source files", func(t *testing.T) {
+		// Create a temporary source file
+		sourceImage := filepath.Join(sourceDir, "to_delete.jpg")
+		if err := os.WriteFile(sourceImage, createFakeExifData(), 0644); err != nil {
+			t.Fatalf("Failed to create source file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:       sourceDir,
+			Destination:  destDir,
+			Compression:  -1,
+			DeleteSource: true,
+		}
+
+		summary, err := ProcessMediaFiles(params)
+		if err != nil {
+			t.Errorf("ProcessMediaFiles failed with delete source: %v", err)
+		}
+
+		// Check if the source file was deleted
+		if _, err := os.Stat(sourceImage); !os.IsNotExist(err) {
+			t.Errorf("Source file should have been deleted")
+		}
+		if summary.Deleted != 1 {
+			t.Errorf("Expected 1 deleted file, got %d", summary.Deleted)
+		}
+	})
+
+	// Test case: Apply compression
+	t.Run("Apply compression", func(t *testing.T) {
+		// Since our fake JPEG is too minimal to be properly processed by Go's image decoder,
+		// we'll just verify that it attempts to process it
+
+		// Create a new source file for this test
+		sourceImage := filepath.Join(sourceDir, "to_compress.jpg")
+		if err := os.WriteFile(sourceImage, createFakeExifData(), 0644); err != nil {
+			t.Fatalf("Failed to create source file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:      sourceDir,
+			Destination: destDir,
+			Compression: 50, // Apply compression
+		}
+
+		summary, err := ProcessMediaFiles(params)
+		if err != nil {
+			t.Errorf("ProcessMediaFiles failed with compression: %v", err)
+		}
+
+		// The compression would fail because our fake JPEG is not a valid image
+		// We just check it tried to process it
+		if summary.Processed == 0 && summary.Skipped == 0 {
+			t.Errorf("Expected file to be processed or skipped")
+		}
+	})
+}
+
+// Helper function to create a fake JPEG file with EXIF data
+func createFakeExifData() []byte {
+	// Create a basic valid JPEG structure with EXIF metadata
+	// This is a simplified version but includes enough to be processed by the system
+
+	// SOI marker
+	data := []byte{0xFF, 0xD8}
+
+	// APP1 marker for EXIF
+	data = append(data, 0xFF, 0xE1)
+
+	// Length of APP1 segment (big endian)
+	exifData := []byte("Exif\x00\x00MM\x00*\x00\x00\x00\x08")
+
+	// Add a simple IFD with DateTime tag
+	ifd := []byte{
+		0x00, 0x01, // Number of directory entries
+
+		// DateTime tag (0x0132)
+		0x01, 0x32, // Tag
+		0x00, 0x02, // Type (ASCII)
+		0x00, 0x00, 0x00, 0x14, // Count (20 bytes)
+		0x00, 0x00, 0x00, 0x1A, // Offset to value
+
+		// Next IFD offset (0 = no more)
+		0x00, 0x00, 0x00, 0x00,
+
+		// DateTime value: "2025:01:11 17:10:39"
+		'2', '0', '2', '5', ':', '0', '1', ':', '1', '1', ' ',
+		'1', '7', ':', '1', '0', ':', '3', '9', 0x00,
+	}
+	exifData = append(exifData, ifd...)
+
+	// Add length bytes (big endian, includes the length bytes themselves)
+	length := len(exifData) + 2
+	data = append(data, byte(length>>8), byte(length&0xFF))
+	data = append(data, exifData...)
+
+	// Add a simple ending to make it a valid JPEG
+	data = append(data, 0xFF, 0xD9) // EOI marker
+
+	return data
+}
+
+// Helper function to copy a test file
+func copyTestFile(src, dst string) error {
+	// Check if source exists
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return fmt.Errorf("source file %s does not exist", src)
+	}
+
+	// Read the source file
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	// Write to destination
+	return os.WriteFile(dst, data, 0644)
 }

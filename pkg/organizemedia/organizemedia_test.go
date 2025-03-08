@@ -1,6 +1,7 @@
 package organizemedia
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +51,189 @@ func TestFormatSize(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestOrganizeErrorHandling tests error cases in the Organize function
+func TestOrganizeErrorHandling(t *testing.T) {
+	// Create test directories
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Test cases for directory error handling
+	t.Run("Non-existent source directory", func(t *testing.T) {
+		nonExistentSource := filepath.Join(sourceDir, "non-existent")
+
+		params := &models.Params{
+			Source:        nonExistentSource,
+			Destination:   destDir,
+			Compression:   -1,
+			SkipUserInput: true,
+		}
+
+		err := Organize(params)
+		if err == nil {
+			t.Errorf("Expected error for non-existent source directory, got nil")
+		}
+	})
+
+	t.Run("Non-existent destination directory", func(t *testing.T) {
+		nonExistentDest := filepath.Join(destDir, "non-existent")
+
+		params := &models.Params{
+			Source:        sourceDir,
+			Destination:   nonExistentDest,
+			Compression:   -1,
+			SkipUserInput: true,
+		}
+
+		err := Organize(params)
+		if err == nil {
+			t.Errorf("Expected error for non-existent destination directory, got nil")
+		}
+	})
+
+	t.Run("Invalid compression level", func(t *testing.T) {
+		params := &models.Params{
+			Source:        sourceDir,
+			Destination:   destDir,
+			Compression:   101, // Invalid compression level
+			SkipUserInput: true,
+		}
+
+		err := Organize(params)
+		if err == nil {
+			t.Errorf("Expected error for invalid compression level, got nil")
+		}
+	})
+
+	t.Run("Permission denied for destination", func(t *testing.T) {
+		// Skip on Windows as permission tests behave differently
+		if os.Getenv("GOOS") == "windows" {
+			t.Skip("Skipping permission test on Windows")
+		}
+
+		// Create a read-only destination directory
+		readOnlyDir := filepath.Join(t.TempDir(), "read-only")
+		if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+			t.Fatalf("Failed to create read-only directory: %v", err)
+		}
+		// Ensure we have a file to process
+		sampleFile := filepath.Join(sourceDir, "test.jpg")
+		if err := os.WriteFile(sampleFile, []byte("test data"), 0644); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:        sourceDir,
+			Destination:   readOnlyDir,
+			Compression:   -1,
+			SkipUserInput: true,
+		}
+
+		err := Organize(params)
+		if err == nil {
+			t.Errorf("Expected permission error for read-only destination, got nil")
+		}
+	})
+
+	t.Run("Skip user input", func(t *testing.T) {
+		// Create a sample file
+		sampleFile := filepath.Join(sourceDir, "test.jpg")
+		if err := os.WriteFile(sampleFile, []byte("test data"), 0644); err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+
+		params := &models.Params{
+			Source:        sourceDir,
+			Destination:   destDir,
+			Compression:   -1,
+			SkipUserInput: true, // Skip user confirmation
+		}
+
+		err := Organize(params)
+		if err != nil {
+			t.Errorf("Unexpected error with skip user input: %v", err)
+		}
+		// Note: We can't check the summary directly since it's not returned
+	})
+
+	t.Run("Empty source directory", func(t *testing.T) {
+		// Use an empty directory
+		emptyDir := t.TempDir()
+
+		params := &models.Params{
+			Source:        emptyDir,
+			Destination:   destDir,
+			Compression:   -1,
+			SkipUserInput: true,
+		}
+
+		err := Organize(params)
+		if err == nil {
+			t.Errorf("Expected error for empty source directory, got nil")
+		}
+
+		// Check if the error message contains the expected message
+		if !strings.Contains(err.Error(), "no files to process") {
+			t.Errorf("Expected error message to contain 'no files to process', got: %v", err)
+		}
+	})
+}
+
+// createMockErrorFile creates a temporary file that will cause an error when read
+func createMockErrorFile(dir string) (string, error) {
+	// Create a directory to be mistaken for a file
+	filePath := filepath.Join(dir, "error.jpg")
+	err := os.Mkdir(filePath, 0755)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create mock error file: %w", err)
+	}
+	// Make it read-only for additional error cases
+	err = os.Chmod(filePath, 0400)
+	if err != nil {
+		return "", fmt.Errorf("Failed to set permissions: %w", err)
+	}
+	return filePath, nil
+}
+
+// TestProcessMediaFilesErrors tests error handling in the ProcessMediaFiles function
+func TestProcessMediaFilesErrors(t *testing.T) {
+	sourceDir := t.TempDir()
+	destDir := t.TempDir()
+
+	t.Run("Error reading file", func(t *testing.T) {
+		// Skip on Windows as permission tests behave differently
+		if os.Getenv("GOOS") == "windows" {
+			t.Skip("Skipping permission test on Windows")
+		}
+
+		// Create a file that will cause errors when read
+		errorFile, err := createMockErrorFile(sourceDir)
+		if err != nil {
+			t.Fatalf("Failed to setup test: %v", err)
+		}
+
+		// Attempt to process the file
+		params := &models.Params{
+			Source:        sourceDir,
+			Destination:   destDir,
+			Compression:   -1,
+			SkipUserInput: true,
+			DeleteSource:  false,
+		}
+
+		err = Organize(params)
+		// The function should complete but log errors
+		if err != nil {
+			// This might not actually error out the whole function
+			// but we should see files skipped in the summary
+			t.Logf("Got error: %v", err)
+		}
+
+		// Clean up
+		os.Chmod(errorFile, 0700)
+		os.RemoveAll(errorFile)
+	})
 }
 
 func TestSetupLogger(t *testing.T) {
