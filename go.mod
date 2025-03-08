@@ -1,3 +1,3 @@
 module github.com/matdmb/organize-media
 
-go 1.19
+go 1.23

@@ -17,24 +17,30 @@ jobs:
       pull-requests: write
 
     steps:
-    # Step 1: Check out the code with LFS
-    - name: Checkout code
+    # Step 1: Check out the code without LFS objects first
+    - name: Checkout code (without LFS)
       uses: actions/checkout@v4
       with:
-        lfs: true
+        lfs: false
 
-    # Step 2: Restore LFS cache
-    - name: Restore LFS cache
+    # Step 2: Set up more efficient LFS cache
+    - name: Set up Git LFS cache
       uses: actions/cache@v3
+      id: lfs-cache
       with:
-        path: ~/.git/lfs
-        key: lfs-${{ runner.os }}-${{ github.sha }}
+        path: .git/lfs
+        key: lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}-${{ github.sha }}
         restore-keys: |
+          lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}-
           lfs-${{ runner.os }}-
 
-    # Step 3: Pull LFS objects
+    # Step 3: Pull LFS objects (will use cache if available)
     - name: Pull LFS objects
-      run: git lfs pull
+      run: |
+        git lfs install
+        # Limit concurrent transfers to reduce bandwidth
+        git config lfs.concurrenttransfers 1
+        git lfs pull
         
     # Step 4: Set up Go environment
     - name: Set up Go

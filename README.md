@@ -15,7 +15,7 @@ _Current test coverage as tracked by Codecov._
 - Lightweight and simple to use.
 
 ## Prerequisites
-- [Go](https://go.dev/) version `1.19` or later.
+- [Go](https://go.dev/) version `1.23` or later.
 - `make` utility (for running commands).
 
 ## Installation

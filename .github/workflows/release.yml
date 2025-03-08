@@ -48,8 +48,20 @@ jobs:
             zip_name: "organize-media-windows"
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (without LFS)
         uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Git LFS cache
+        uses: actions/cache@v3
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}-${{ github.sha }}
+          restore-keys: |
+            lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}-
+            lfs-${{ runner.os }}-
 
       - name: Set up Go
         uses: actions/setup-go@v5
