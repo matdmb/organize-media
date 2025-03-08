@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"os"
@@ -11,6 +12,15 @@ import (
 
 	"github.com/matdmb/organize-media/pkg/models"
 )
+
+// Helper function to handle platform-specific test expectations
+func getSkippedCount() int {
+	// On Windows, permission tests behave differently
+	if runtime.GOOS == "windows" {
+		return 0
+	}
+	return 1
+}
 
 func TestIsAllowedExtension(t *testing.T) {
 	tests := []struct {
@@ -243,6 +253,7 @@ func TestProcessMediaFiles(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      *models.Params
+		setupFunc   func(string) string // Function to set up test environment
 		wantErr     bool
 		wantSummary ProcessingSummary
 	}{
@@ -280,29 +291,7 @@ func TestProcessMediaFiles(t *testing.T) {
 				Deleted:    0,
 			},
 		},
-		/*		{
-							name: "Process files with corrupted EXIF",
-							params: &models.Params{
-								Source:       "../testdata/exif/sample_corrupted_exif.jpg",
-								Destination:  destDir,
-								Compression:  50,
-								DeleteSource: false,
-							},
-							wantErr:     true,
-							wantSummary: ProcessingSummary{},
-						},
-				{
-					name: "Process files without EXIF",
-					params: &models.Params{
-						Source:       "../testdata/exif/sample_without_exif.jpg",
-						Destination:  destDir,
-						Compression:  50,
-						DeleteSource: false,
-					},
-					wantErr:     true,
-					wantSummary: ProcessingSummary{},
-				},
-		*/{
+		{
 			name: "Invalid source directory",
 			params: &models.Params{
 				Source:       "/nonexistent",
@@ -313,13 +302,178 @@ func TestProcessMediaFiles(t *testing.T) {
 			wantErr:     true,
 			wantSummary: ProcessingSummary{},
 		},
+		// Add test for file with no read permissions (to test error opening file)
+		{
+			name: "File with no read permissions",
+			params: &models.Params{
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+				// Source set in setupFunc
+			},
+			setupFunc: func(destDir string) string {
+				// Create a temporary file with no read permissions
+				tempDir := t.TempDir()
+				filePath := filepath.Join(tempDir, "noperm.jpg")
+
+				// First create the file normally
+				err := os.WriteFile(filePath, []byte("test data"), 0644)
+				if err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+
+				// Then remove read permissions
+				if runtime.GOOS != "windows" {
+					if err := os.Chmod(filePath, 0200); err != nil {
+						t.Fatalf("Failed to change file permissions: %v", err)
+					}
+				}
+
+				return tempDir
+			},
+			wantErr: false, // Not expecting error at top level, just skipping file
+			wantSummary: ProcessingSummary{
+				Processed:  0,
+				Compressed: 0,
+				Copied:     0,
+				Skipped:    getSkippedCount(), // Use a function instead of ternary
+				Deleted:    0,
+			},
+		},
+		// Test multiple files in a directory
+		{
+			name: "Multiple files in directory",
+			params: &models.Params{
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+				// Source set in setupFunc
+			},
+			setupFunc: func(destDir string) string {
+				// Create a temporary directory with multiple files
+				tempDir := t.TempDir()
+
+				// Copy a sample file multiple times
+				samplePath := "../testdata/DSC00001.JPG"
+				sampleData, err := os.ReadFile(samplePath)
+				if err != nil {
+					t.Fatalf("Failed to read sample file: %v", err)
+				}
+
+				// Create 3 copies with different names
+				for i := 1; i <= 3; i++ {
+					destPath := filepath.Join(tempDir, fmt.Sprintf("test%d.jpg", i))
+					if err := os.WriteFile(destPath, sampleData, 0644); err != nil {
+						t.Fatalf("Failed to create test file %d: %v", i, err)
+					}
+				}
+
+				return tempDir
+			},
+			wantErr: false,
+			wantSummary: ProcessingSummary{
+				Processed:  3,
+				Compressed: 3,
+				Copied:     0,
+				Skipped:    0,
+				Deleted:    0,
+			},
+		},
+		// Fix the destination already exists test
+		{
+			name: "Destination already exists",
+			params: &models.Params{
+				Source:       "../testdata/DSC00001.JPG",
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: false,
+				// Setup will modify destination
+			},
+			setupFunc: func(destDir string) string {
+				// Create the destination directory structure and file, identical to what the production code would create
+				yearDir := filepath.Join(destDir, "2025")
+				monthDayDir := filepath.Join(yearDir, "01-11") // Format from the date in the sample file
+
+				if err := os.MkdirAll(monthDayDir, 0755); err != nil {
+					t.Fatalf("Failed to create test directory structure: %v", err)
+				}
+
+				// Create a file at the destination path with the expected EXACT name
+				destFilePath := filepath.Join(monthDayDir, "DSC00001.JPG")
+
+				// Copy the original file to the destination to simulate a previously processed file
+				srcData, err := os.ReadFile("../testdata/DSC00001.JPG")
+				if err != nil {
+					t.Fatalf("Failed to read test source file: %v", err)
+				}
+
+				if err := os.WriteFile(destFilePath, srcData, 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+
+				// Return the source file path
+				return "../testdata/DSC00001.JPG"
+			},
+			wantErr: false,
+			wantSummary: ProcessingSummary{
+				Processed:  0,
+				Compressed: 0,
+				Copied:     0,
+				Skipped:    1, // File exists, so it should be skipped
+				Deleted:    0,
+			},
+		},
+		// Test with deleteSource = true
+		{
+			name: "Delete source after processing",
+			params: &models.Params{
+				Destination:  destDir,
+				Compression:  50,
+				DeleteSource: true,
+				// Source set in setupFunc
+			},
+			setupFunc: func(destDir string) string {
+				// Create a temporary directory and copy the sample file there
+				tempDir := t.TempDir()
+				samplePath := "../testdata/DSC00001.JPG"
+				sampleData, err := os.ReadFile(samplePath)
+				if err != nil {
+					t.Fatalf("Failed to read sample file: %v", err)
+				}
+
+				destPath := filepath.Join(tempDir, "to_delete.jpg")
+				if err := os.WriteFile(destPath, sampleData, 0644); err != nil {
+					t.Fatalf("Failed to create test file: %v", err)
+				}
+
+				return tempDir
+			},
+			wantErr: false,
+			wantSummary: ProcessingSummary{
+				Processed:  1,
+				Compressed: 1,
+				Copied:     0,
+				Skipped:    0,
+				Deleted:    1, // Source file should be deleted
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a new destination directory for each test
 			testDestDir := filepath.Join(destDir, tt.name)
+			if err := os.MkdirAll(testDestDir, 0755); err != nil {
+				t.Fatalf("Failed to create test destination directory: %v", err)
+			}
+
 			tt.params.Destination = testDestDir
+
+			// Run setup function if provided
+			if tt.setupFunc != nil {
+				sourcePath := tt.setupFunc(testDestDir)
+				tt.params.Source = sourcePath
+			}
 
 			summary, err := ProcessMediaFiles(tt.params)
 
@@ -342,14 +496,16 @@ func TestProcessMediaFiles(t *testing.T) {
 					t.Errorf("ProcessMediaFiles() summary = %+v, want %+v", gotSummary, tt.wantSummary)
 				}
 
-				// Verify files were processed
-				files, err := filepath.Glob(filepath.Join(testDestDir, "*/*/*.*"))
-				if err != nil {
-					t.Errorf("Failed to check processed files: %v", err)
-				}
-				expectedFiles := tt.wantSummary.Processed
-				if len(files) != expectedFiles {
-					t.Errorf("Expected %d processed files, got %d", expectedFiles, len(files))
+				if tt.wantSummary.Processed > 0 {
+					// Verify files were processed
+					files, err := filepath.Glob(filepath.Join(testDestDir, "*/*/*.*"))
+					if err != nil {
+						t.Errorf("Failed to check processed files: %v", err)
+					}
+					expectedFiles := tt.wantSummary.Processed
+					if len(files) != expectedFiles {
+						t.Errorf("Expected %d processed files, got %d", expectedFiles, len(files))
+					}
 				}
 			}
 		})

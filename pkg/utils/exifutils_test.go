@@ -699,3 +699,133 @@ func TestParseTIFFHeader(t *testing.T) {
 		}
 	})
 }
+
+// TestParseTIFFHeaderBranches tests specific branches of the ParseTIFFHeader function
+func TestParseTIFFHeaderBranches(t *testing.T) {
+	// Test 1: Test more branch coverage for failed cases
+	t.Run("Invalid byte order", func(t *testing.T) {
+		data := []byte{'X', 'X', 0x00, 0x2A} // Invalid byte order
+		_, err := ParseTIFFHeader(bytes.NewReader(data))
+		if err == nil {
+			t.Error("Expected error for invalid byte order, got nil")
+		}
+	})
+
+	t.Run("Invalid TIFF marker", func(t *testing.T) {
+		data := []byte{'M', 'M', 0x00, 0x00} // Invalid TIFF marker (not 42)
+		_, err := ParseTIFFHeader(bytes.NewReader(data))
+		if err == nil {
+			t.Error("Expected error for invalid TIFF marker, got nil")
+		}
+	})
+
+	t.Run("Short data", func(t *testing.T) {
+		data := []byte{'M', 'M'} // Too short
+		_, err := ParseTIFFHeader(bytes.NewReader(data))
+		if err == nil {
+			t.Error("Expected error for short data, got nil")
+		}
+	})
+
+	t.Run("Non-seekable reader skipping bytes", func(t *testing.T) {
+		// Create a simple TIFF-like structure with a non-seekable reader
+		var buf bytes.Buffer
+
+		// TIFF header
+		buf.WriteString("MM")                     // Big endian
+		buf.Write([]byte{0x00, 0x2A})             // TIFF marker (42)
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x10}) // IFD offset = 16 (8 bytes header + 8 padding)
+
+		// Add padding bytes to reach IFD
+		buf.Write(make([]byte, 8))
+
+		// IFD with one entry
+		buf.Write([]byte{0x00, 0x01}) // 1 entry
+
+		// IFD entry - use a non-date tag to hit the branch where tag is skipped
+		buf.Write([]byte{0x01, 0x00})             // Non-date tag
+		buf.Write([]byte{0x00, 0x03})             // Data type = 3 (SHORT)
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x01}) // Count = 1
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x64}) // Value = 100
+
+		// Wrap in a non-seekable reader
+		r := &limitedReader{bytes.NewReader(buf.Bytes())}
+
+		// This should fail because no date tags, but should exercise the non-seekable reader logic
+		_, err := ParseTIFFHeader(r)
+		if err == nil {
+			t.Error("Expected error for missing date tags with non-seekable reader, got nil")
+		}
+	})
+
+	// Test date tag with count <= 4
+	t.Run("Date tag with count <= 4", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		// TIFF header
+		buf.WriteString("MM")                     // Big endian
+		buf.Write([]byte{0x00, 0x2A})             // TIFF marker (42)
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x08}) // IFD offset = 8
+
+		// IFD with one entry
+		buf.Write([]byte{0x00, 0x01}) // 1 entry
+
+		// IFD entry - use DateTime tag but with count <= 4
+		buf.Write([]byte{0x01, 0x32})             // DateTime tag
+		buf.Write([]byte{0x00, 0x02})             // ASCII
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x04}) // Count = 4 (too short)
+		buf.Write([]byte{0x31, 0x32, 0x33, 0x34}) // Value bytes directly in value/offset field
+
+		_, err := ParseTIFFHeader(bytes.NewReader(buf.Bytes()))
+		if err == nil {
+			t.Error("Expected error for date tag with count <= 4, got nil")
+		}
+	})
+
+	// Test error during io.ReadFull for entry bytes
+	t.Run("Error during io.ReadFull", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		// TIFF header
+		buf.WriteString("MM")                     // Big endian
+		buf.Write([]byte{0x00, 0x2A})             // TIFF marker (42)
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x08}) // IFD offset = 8
+
+		// IFD with one entry
+		buf.Write([]byte{0x00, 0x01}) // 1 entry
+
+		// Truncated IFD entry (only 4 bytes instead of 12)
+		buf.Write([]byte{0x01, 0x32, 0x00, 0x02})
+
+		_, err := ParseTIFFHeader(bytes.NewReader(buf.Bytes()))
+		if err == nil {
+			t.Error("Expected error for truncated IFD entry, got nil")
+		}
+	})
+
+	// Test for the case where IFD entry count read fails
+	t.Run("Error reading IFD entry count", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		// TIFF header
+		buf.WriteString("MM")                     // Big endian
+		buf.Write([]byte{0x00, 0x2A})             // TIFF marker (42)
+		buf.Write([]byte{0x00, 0x00, 0x00, 0x08}) // IFD offset = 8
+
+		// Truncated buffer - missing IFD entry count
+
+		_, err := ParseTIFFHeader(bytes.NewReader(buf.Bytes()))
+		if err == nil {
+			t.Error("Expected error for missing IFD entry count, got nil")
+		}
+	})
+}
+
+// limitedReader is a wrapper around io.Reader that doesn't implement io.ReadSeeker
+type limitedReader struct {
+	r io.Reader
+}
+
+func (lr *limitedReader) Read(p []byte) (n int, err error) {
+	return lr.r.Read(p)
+}
