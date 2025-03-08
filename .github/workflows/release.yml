@@ -57,11 +57,23 @@ jobs:
         uses: actions/cache@v3
         id: lfs-cache
         with:
-          path: .git/lfs
+          path: |
+            .git/lfs
+            .git/objects/pack/pack-*.idx
+            .git/objects/pack/pack-*.pack
           key: lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}-${{ github.sha }}
           restore-keys: |
             lfs-${{ runner.os }}-${{ hashFiles('.gitattributes') }}-
             lfs-${{ runner.os }}-
+
+      # Optional: Pull LFS objects if needed for release builds
+      # Uncomment if your builds require the test data
+      # - name: Pull LFS objects
+      #   run: |
+      #     git lfs install
+      #     git config lfs.concurrenttransfers 1
+      #     git config lfs.batchsize 100
+      #     git lfs pull
 
       - name: Set up Go
         uses: actions/setup-go@v5
