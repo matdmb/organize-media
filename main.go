@@ -10,6 +10,9 @@ import (
 	"github.com/matdmb/organize-media/pkg/organizemedia"
 )
 
+// For testing purposes
+var osExit = os.Exit
+
 func main() {
 	// Define flags
 	source := flag.String("source", "", "Path to the source directory containing pictures")
@@ -22,19 +25,44 @@ func main() {
 	flag.Parse()
 
 	// Validate required flags
-	if *source == "" || *dest == "" {
-		fmt.Println("Usage:")
-		flag.PrintDefaults()
-		os.Exit(1)
+	if err := validateFlags(*source, *dest); err != nil {
+		handleValidationError()
 	}
 
+	// Run with validated params
+	runOrganize(*source, *dest, *compression, *delete, *logFile)
+}
+
+// validateFlags checks if required flags are provided
+func validateFlags(source, dest string) error {
+	if source == "" || dest == "" {
+		return fmt.Errorf("source and destination directories are required")
+	}
+	return nil
+}
+
+// handleValidationError prints usage info and exits
+func handleValidationError() {
+	fmt.Println("Usage:")
+	fmt.Println("  -source    Source directory containing media files")
+	fmt.Println("  -dest      Destination directory for organized files")
+	fmt.Println("  -compression  JPEG compression level (0-100, default: 90, -1 to disable)")
+	fmt.Println("  -delete    Delete source files after successful processing (default: false)")
+	fmt.Println("  -enable-log  Enable logging to file (default: false)")
+	fmt.Println("\nExample:")
+	fmt.Println("  ./organize-media -source /path/to/photos -dest /path/to/organized")
+	osExit(1)
+}
+
+// runOrganize runs the organize logic with the given parameters
+func runOrganize(source, dest string, compression int, delete, logFile bool) {
 	// Initialize Params struct
 	params := &models.Params{
-		Source:       *source,
-		Destination:  *dest,
-		Compression:  *compression,
-		DeleteSource: *delete,
-		EnableLog:    *logFile,
+		Source:       source,
+		Destination:  dest,
+		Compression:  compression,
+		DeleteSource: delete,
+		EnableLog:    logFile,
 	}
 
 	// Run the main logic
