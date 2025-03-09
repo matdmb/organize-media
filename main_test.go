@@ -11,9 +11,6 @@ import (
 	"testing"
 )
 
-// Mock os.Exit for testing
-var osExit = os.Exit
-
 func TestMainFunction(t *testing.T) {
 	// Set up a temporary source and destination directory
 	srcDir := t.TempDir()
@@ -34,12 +31,10 @@ func TestMainFunction(t *testing.T) {
 		t.Fatalf("Failed to copy sample file: %v", err)
 	}
 
-	// Save original args and exit function
+	// Save original args
 	oldArgs := os.Args
-	oldExit := osExit
 	defer func() {
 		os.Args = oldArgs
-		osExit = oldExit
 	}()
 
 	// Mock `os.Stdin` to automatically provide input
@@ -248,5 +243,113 @@ func TestCompressionRange(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestValidateFlags tests the flag validation logic directly
+func TestValidateFlags(t *testing.T) {
+	testCases := []struct {
+		name    string
+		source  string
+		dest    string
+		wantErr bool
+	}{
+		{
+			name:    "both valid",
+			source:  "/tmp/source",
+			dest:    "/tmp/dest",
+			wantErr: false,
+		},
+		{
+			name:    "empty source",
+			source:  "",
+			dest:    "/tmp/dest",
+			wantErr: true,
+		},
+		{
+			name:    "empty dest",
+			source:  "/tmp/source",
+			dest:    "",
+			wantErr: true,
+		},
+		{
+			name:    "both empty",
+			source:  "",
+			dest:    "",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateFlags(tc.source, tc.dest)
+
+			if tc.wantErr && err == nil {
+				t.Errorf("validateFlags() expected error, got nil")
+			}
+
+			if !tc.wantErr && err != nil {
+				t.Errorf("validateFlags() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestHandleValidationError tests that the handleValidationError function
+// prints the correct usage information and calls exit with status code 1
+func TestHandleValidationError(t *testing.T) {
+	// Save the original os.Exit function and restore it after the test
+	originalExit := osExit
+	defer func() { osExit = originalExit }()
+
+	// Create a mock exit function to track if it was called and with what code
+	exitCalled := false
+	exitCode := 0
+	osExit = func(code int) {
+		exitCalled = true
+		exitCode = code
+	}
+
+	// Redirect stdout to capture the output
+	originalStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	defer func() { os.Stdout = originalStdout }()
+
+	// Call the function
+	handleValidationError()
+
+	// Close the writer to flush the output
+	w.Close()
+
+	// Read the captured output
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	output := buf.String()
+
+	// Verify that osExit was called with status code 1
+	if !exitCalled {
+		t.Error("osExit was not called")
+	}
+	if exitCode != 1 {
+		t.Errorf("Expected exit code 1, got %d", exitCode)
+	}
+
+	// Verify the output contains the expected usage information
+	expectedStrings := []string{
+		"Usage:",
+		"-source",
+		"-dest",
+		"-compression",
+		"-delete",
+		"-enable-log",
+		"Example:",
+		"./organize-media -source /path/to/photos -dest /path/to/organized",
+	}
+
+	for _, expected := range expectedStrings {
+		if !strings.Contains(output, expected) {
+			t.Errorf("Expected output to contain %q, but got: %s", expected, output)
+		}
 	}
 }
