@@ -19,7 +19,7 @@ jobs:
     steps:
     # Step 1: Check out the code without LFS objects first
     - name: Checkout code (without LFS)
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         lfs: false
 
