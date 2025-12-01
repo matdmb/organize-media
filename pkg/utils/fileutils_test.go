@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/matdmb/organize-media/pkg/models"
 )
@@ -147,136 +148,181 @@ func TestFileExists(t *testing.T) {
 }
 
 func TestCopyOrCompressImage(t *testing.T) {
-	// Create temp dirs for source and destination
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
+	t.Run("Copy or compress JPEG includes EXIF metadata", func(t *testing.T) {
+		src := "../testdata/sample_with_exif.jpg"
+		dest := filepath.Join(t.TempDir(), "compressed_test.jpg")
 
-	// Create test image
-	img := image.NewRGBA(image.Rect(0, 0, 100, 100))
-	var imgBuffer bytes.Buffer
-	if err := jpeg.Encode(&imgBuffer, img, nil); err != nil {
-		t.Fatalf("Failed to create test image: %v", err)
-	}
-	imageData := imgBuffer.Bytes()
+		imageData, err := os.ReadFile(src)
+		if err != nil {
+			t.Fatalf("Failed to read source file: %v", err)
+		}
 
-	// Test cases
-	tests := []struct {
-		name         string
-		sourceFile   string
-		isJPG        bool
-		compression  int
-		deleteSource bool
-		wantSkipped  bool
-		wantError    bool
-	}{
-		{
-			name:         "Compress JPG",
-			sourceFile:   filepath.Join(srcDir, "test.jpg"),
-			isJPG:        true,
-			compression:  50,
-			deleteSource: false,
-			wantSkipped:  false,
-			wantError:    false,
-		},
-		{
-			name:         "Copy non-JPG",
-			sourceFile:   filepath.Join(srcDir, "test.nef"),
-			isJPG:        false,
-			compression:  50,
-			deleteSource: false,
-			wantSkipped:  false,
-			wantError:    false,
-		},
-		{
-			name:         "Skip existing file",
-			sourceFile:   filepath.Join(srcDir, "existing.jpg"),
-			isJPG:        true,
-			compression:  50,
-			deleteSource: false,
-			wantSkipped:  true,
-			wantError:    false,
-		},
-		{
-			name:         "Delete source after copy",
-			sourceFile:   filepath.Join(srcDir, "delete.jpg"),
-			isJPG:        true,
-			compression:  50,
-			deleteSource: true,
-			wantSkipped:  false,
-			wantError:    false,
-		},
-	}
+		// Compress the image
+		params := &models.Params{Compression: 50, DeleteSource: false, Destination: dest, Source: src}
+		if err := copyOrCompressImage(dest, src, imageData, true, params, &ProcessingSummary{}); err != nil {
+			t.Fatalf("copyOrCompressImage returned an error: %v", err)
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create source file
-			if err := os.WriteFile(tt.sourceFile, imageData, 0644); err != nil {
-				t.Fatalf("Failed to create source file: %v", err)
-			}
+		// Read the destination file
+		destFile, err := os.Open(dest)
+		if err != nil {
+			t.Fatalf("Failed to open destination file: %v", err)
+		}
+		defer destFile.Close()
 
-			destPath := filepath.Join(destDir, filepath.Base(tt.sourceFile))
+		// Check if the destination file is a valid JPEG file
+		if _, err := jpeg.Decode(destFile); err != nil {
+			t.Fatalf("Failed to decode destination file: %v", err)
+		}
 
-			// For "skip existing" test, create destination file first
-			if tt.wantSkipped {
-				if err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
-					t.Fatalf("Failed to create destination dir: %v", err)
+		writtenImageData, err := os.ReadFile(dest)
+		if err != nil {
+			t.Fatalf("Failed to read source file: %v", err)
+		}
+
+		// Get EXIF date from the destination file
+		exifDate, err := GetImageDateTime(writtenImageData, ".jpg")
+		if err != nil {
+			t.Fatalf("Failed to get EXIF date from destination file: %v", err)
+		}
+
+		// Check if the EXIF date is the same as the original
+		if exifDate.Day() != 25 || exifDate.Month() != 12 || exifDate.Year() != 2022 {
+			t.Errorf("EXIF date does not match. Original: %v, Destination: %v", time.Date(2022, 12, 25, 10, 30, 0, 0, time.UTC), exifDate)
+		}
+	})
+	t.Run("Copy or compress JPG", func(t *testing.T) {
+		// Create temp dirs for source and destination
+		srcDir := t.TempDir()
+		destDir := t.TempDir()
+
+		// Create test image
+		img := image.NewRGBA(image.Rect(0, 0, 100, 100))
+		var imgBuffer bytes.Buffer
+		if err := jpeg.Encode(&imgBuffer, img, nil); err != nil {
+			t.Fatalf("Failed to create test image: %v", err)
+		}
+		imageData := imgBuffer.Bytes()
+
+		// Test cases
+		tests := []struct {
+			name         string
+			sourceFile   string
+			isJPG        bool
+			compression  int
+			deleteSource bool
+			wantSkipped  bool
+			wantError    bool
+		}{
+			{
+				name:         "Compress JPG",
+				sourceFile:   filepath.Join(srcDir, "test.jpg"),
+				isJPG:        true,
+				compression:  50,
+				deleteSource: false,
+				wantSkipped:  false,
+				wantError:    false,
+			},
+			{
+				name:         "Copy non-JPG",
+				sourceFile:   filepath.Join(srcDir, "test.nef"),
+				isJPG:        false,
+				compression:  50,
+				deleteSource: false,
+				wantSkipped:  false,
+				wantError:    false,
+			},
+			{
+				name:         "Skip existing file",
+				sourceFile:   filepath.Join(srcDir, "existing.jpg"),
+				isJPG:        true,
+				compression:  50,
+				deleteSource: false,
+				wantSkipped:  true,
+				wantError:    false,
+			},
+			{
+				name:         "Delete source after copy",
+				sourceFile:   filepath.Join(srcDir, "delete.jpg"),
+				isJPG:        true,
+				compression:  50,
+				deleteSource: true,
+				wantSkipped:  false,
+				wantError:    false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				// Create source file
+				if err := os.WriteFile(tt.sourceFile, imageData, 0644); err != nil {
+					t.Fatalf("Failed to create source file: %v", err)
 				}
-				if err := os.WriteFile(destPath, []byte("existing"), 0644); err != nil {
-					t.Fatalf("Failed to create existing file: %v", err)
+
+				destPath := filepath.Join(destDir, filepath.Base(tt.sourceFile))
+
+				// For "skip existing" test, create destination file first
+				if tt.wantSkipped {
+					if err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm); err != nil {
+						t.Fatalf("Failed to create destination dir: %v", err)
+					}
+					if err := os.WriteFile(destPath, []byte("existing"), 0644); err != nil {
+						t.Fatalf("Failed to create existing file: %v", err)
+					}
 				}
-			}
 
-			params := &models.Params{
-				Compression:  tt.compression,
-				DeleteSource: tt.deleteSource,
-			}
-
-			var summary ProcessingSummary
-			err := copyOrCompressImage(destPath, tt.sourceFile, imageData, tt.isJPG, params, &summary)
-
-			if (err != nil) != tt.wantError {
-				t.Errorf("copyOrCompressImage() error = %v, wantError %v", err, tt.wantError)
-				return
-			}
-
-			if tt.wantSkipped {
-				if summary.Skipped != 1 {
-					t.Errorf("Expected file to be skipped")
+				params := &models.Params{
+					Compression:  tt.compression,
+					DeleteSource: tt.deleteSource,
 				}
-				return
-			}
 
-			// Verify file exists at destination
-			if _, err := os.Stat(destPath); os.IsNotExist(err) {
-				t.Error("Destination file was not created")
-			}
+				var summary ProcessingSummary
+				err := copyOrCompressImage(destPath, tt.sourceFile, imageData, tt.isJPG, params, &summary)
 
-			// Verify source file deletion
-			if tt.deleteSource {
-				if _, err := os.Stat(tt.sourceFile); !os.IsNotExist(err) {
-					t.Error("Source file was not deleted")
+				if (err != nil) != tt.wantError {
+					t.Errorf("copyOrCompressImage() error = %v, wantError %v", err, tt.wantError)
+					return
 				}
-				if summary.Deleted != 1 {
-					t.Error("Deleted count not incremented")
-				}
-			}
 
-			// Verify compression/copy counters
-			if tt.isJPG && tt.compression >= 0 {
-				if summary.Compressed != 1 {
-					t.Error("Compressed count not incremented for JPG")
+				if tt.wantSkipped {
+					if summary.Skipped != 1 {
+						t.Errorf("Expected file to be skipped")
+					}
+					return
 				}
-			} else {
-				if summary.Copied != 1 {
-					t.Error("Copied count not incremented for non-JPG")
-				}
-			}
 
-			if summary.Processed != 1 {
-				t.Error("Processed count not incremented")
-			}
-		})
-	}
+				// Verify file exists at destination
+				if _, err := os.Stat(destPath); os.IsNotExist(err) {
+					t.Error("Destination file was not created")
+				}
+
+				// Verify source file deletion
+				if tt.deleteSource {
+					if _, err := os.Stat(tt.sourceFile); !os.IsNotExist(err) {
+						t.Error("Source file was not deleted")
+					}
+					if summary.Deleted != 1 {
+						t.Error("Deleted count not incremented")
+					}
+				}
+
+				// Verify compression/copy counters
+				if tt.isJPG && tt.compression >= 0 {
+					if summary.Compressed != 1 {
+						t.Error("Compressed count not incremented for JPG")
+					}
+				} else {
+					if summary.Copied != 1 {
+						t.Error("Copied count not incremented for non-JPG")
+					}
+				}
+
+				if summary.Processed != 1 {
+					t.Error("Processed count not incremented")
+				}
+			})
+		}
+	})
 }
 
 func TestProcessMediaFiles(t *testing.T) {
