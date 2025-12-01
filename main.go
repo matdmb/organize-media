@@ -18,6 +18,7 @@ func main() {
 	source := flag.String("source", "", "Path to the source directory containing pictures")
 	dest := flag.String("dest", "", "Path to the destination directory for organized pictures")
 	compression := flag.Int("compression", -1, "Compression level for JPG files (0-100, optional)")
+	workers := flag.Int("workers", 0, "Number of workers to use for parallel processing (default: number of CPUs)")
 	delete := flag.Bool("delete", false, "Delete source files after processing")
 	logFile := flag.Bool("enable-log", false, "Enable logging to a file")
 
@@ -30,7 +31,7 @@ func main() {
 	}
 
 	// Run with validated params
-	runOrganize(*source, *dest, *compression, *delete, *logFile)
+	runOrganize(*source, *dest, *compression, *workers, *delete, *logFile)
 }
 
 // validateFlags checks if required flags are provided
@@ -47,6 +48,7 @@ func handleValidationError() {
 	fmt.Println("  -source    Source directory containing media files")
 	fmt.Println("  -dest      Destination directory for organized files")
 	fmt.Println("  -compression  JPEG compression level (0-100, default: 90, -1 to disable)")
+	fmt.Println("  -workers    Number of workers to use for parallel processing (default: 1)")
 	fmt.Println("  -delete    Delete source files after successful processing (default: false)")
 	fmt.Println("  -enable-log  Enable logging to file (default: false)")
 	fmt.Println("\nExample:")
@@ -55,12 +57,13 @@ func handleValidationError() {
 }
 
 // runOrganize runs the organize logic with the given parameters
-func runOrganize(source, dest string, compression int, delete, logFile bool) {
+func runOrganize(source, dest string, compression int, workers int, delete, logFile bool) {
 	// Initialize Params struct
 	params := &models.Params{
 		Source:       source,
 		Destination:  dest,
 		Compression:  compression,
+		Workers:      workers,
 		DeleteSource: delete,
 		EnableLog:    logFile,
 	}
