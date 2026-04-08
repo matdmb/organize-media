@@ -70,15 +70,11 @@ func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJP
 		msg = "[COPIED]"
 	}
 
-	// Create the destination file
-	destFile, err := os.Create(destPath)
-	if err != nil {
-		return err
+	// Write EXIF block to the destination file
+	if err := writeJPEGWithEXIF(destPath, extractEXIFBlock(buffer), outputBuffer); err != nil {
+		return fmt.Errorf("failed to write JPEG with EXIF: %v", err)
 	}
-	defer destFile.Close()
 
-	// Write the processed buffer
-	_, err = destFile.Write(outputBuffer)
 	log.Printf("%s Processed file to: %s", msg, destPath)
 	summary.Processed++
 
@@ -90,7 +86,7 @@ func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJP
 		summary.Deleted++
 	}
 
-	return err
+	return nil
 }
 
 func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
