@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -46,6 +47,11 @@ func Organize(params *models.Params) error {
 		log.Printf("Compression level: %d", params.Compression)
 	} else {
 		log.Printf("Compression: not applied")
+	}
+
+	if params.Workers <= 0 {
+		params.Workers = runtime.NumCPU()
+		log.Printf("Using %d workers", params.Workers)
 	}
 
 	log.Printf("Delete source files: %t", params.DeleteSource)

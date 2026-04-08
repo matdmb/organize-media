@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/matdmb/organize-media/pkg/models"
@@ -70,15 +71,11 @@ func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJP
 		msg = "[COPIED]"
 	}
 
-	// Create the destination file
-	destFile, err := os.Create(destPath)
-	if err != nil {
-		return err
+	// Write EXIF block to the destination file
+	if err := writeJPEGWithEXIF(destPath, extractEXIFBlock(buffer), outputBuffer); err != nil {
+		return fmt.Errorf("failed to write JPEG with EXIF: %v", err)
 	}
-	defer destFile.Close()
 
-	// Write the processed buffer
-	_, err = destFile.Write(outputBuffer)
 	log.Printf("%s Processed file to: %s", msg, destPath)
 	summary.Processed++
 
@@ -90,14 +87,22 @@ func copyOrCompressImage(destPath string, sourceFile string, buffer []byte, isJP
 		summary.Deleted++
 	}
 
-	return err
+	return nil
 }
 
 func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
 	start := time.Now()
-	var summary ProcessingSummary
+	var summary ProcessingSummary // TODO: do not allow concurrent writes to summary
 
 	log.Printf("Starting processing files...")
+
+	var wg sync.WaitGroup
+
+	availableWorkers := make(chan struct{}, p.Workers)
+	for i := 0; i < p.Workers; i++ {
+		availableWorkers <- struct{}{}
+	}
+	fmt.Println("Available workers:", len(availableWorkers))
 
 	err := filepath.Walk(p.Source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -139,14 +144,26 @@ func ProcessMediaFiles(p *models.Params) (ProcessingSummary, error) {
 			destDir := filepath.Join(p.Destination, fmt.Sprintf("%d", date.Year()), fmt.Sprintf("%02d-%02d", date.Month(), date.Day()))
 			destPath := filepath.Join(destDir, filepath.Base(path))
 
-			// Copy or compress before writing
-			if err := copyOrCompressImage(destPath, path, buffer, isJPG, p, &summary); err != nil {
-				log.Printf("Failed to process file %s: %v", path, err)
-				return nil // Continue to next file
-			}
+			<-availableWorkers
+			wg.Add(1)
+
+			go func() {
+				defer func() {
+					availableWorkers <- struct{}{}
+					wg.Done()
+				}()
+
+				err = copyOrCompressImage(destPath, path, buffer, isJPG, p, &summary)
+				if err != nil {
+					log.Printf("Failed to process file %s: %v", path, err)
+				}
+			}()
 		}
 		return nil
 	})
+
+	wg.Wait()
+	close(availableWorkers)
 
 	if err != nil {
 		return summary, fmt.Errorf("failed to walk directory: %w", err)
